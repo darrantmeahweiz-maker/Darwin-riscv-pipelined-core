@@ -3,33 +3,92 @@
 module tb_RISCV_Core();
 
     reg clk;
-    reg reset;
+    reg rst_n; // Updated: Active-low asynchronous reset
 
+    // ==========================================
+    // Bus Interconnect Wires
+    // ==========================================
+    wire [31:0] i_addr;
+    wire        i_req;
+    wire [31:0] i_rdata;
+
+    wire [31:0] d_addr;
+    wire [31:0] d_wdata;
+    wire [3:0]  d_we;
+    wire        d_req;
+    wire [31:0] d_rdata;
+
+    // Memory control wires from address decoder
+    wire dmem_we;
+    wire dmem_oe;
+
+    // ==========================================
+    // 1. Pure Core Instantiation (DUT)
+    // ==========================================
     RISCV_Core dut (
-        .clk(clk),
-        .reset(reset)
+        .clk     (clk),
+        .rst_n   (rst_n),
+        .i_addr  (i_addr),
+        .i_req   (i_req),
+        .i_rdata (i_rdata),
+        .d_addr  (d_addr),
+        .d_wdata (d_wdata),
+        .d_we    (d_we),
+        .d_req   (d_req),
+        .d_rdata (d_rdata)
     );
 
-    // 100MHz Clock
+    // ==========================================
+    // 2. Standalone Memory Subsystem (External to Core)
+    // ==========================================
+    IMEM instruction_memory (
+        .A  (i_addr),
+        .RD (i_rdata),
+        .OE (i_req)
+    );
+
+    address_decoder addr_dec (
+        .ALUResultM (d_addr),
+        .MemWriteM  (|d_we),
+        .WE         (dmem_we),
+        .OE         (dmem_oe)
+    );
+
+    DMEM data_memory (
+        .i_Clk (clk),
+        .WE    (dmem_we),
+        .OE    (dmem_oe),
+        .BW    (d_we),
+        .A     (d_addr),
+        .WD    (d_wdata),
+        .RD    (d_rdata)
+    );
+
+    // ==========================================
+    // 3. Clock Generation (100MHz)
+    // ==========================================
     initial begin
         clk = 0;
         forever #5 clk = ~clk;
     end
 
+    // ==========================================
+    // 4. Simulation Flow Control
+    // ==========================================
     initial begin
         $dumpfile("build/core_waveform.vcd");
         $dumpvars(0, tb_RISCV_Core);
 
-        reset = 1'b1;
+        // Active-low reset: Assert at 0, de-assert to 1 after 20ns
+        rst_n = 1'b0;
         #20; 
-        reset = 1'b0;
+        rst_n = 1'b1;
         
         $display("========================================");
         $display(" 🚀 RISC-V EXHAUSTIVE SELF-CHECKING VERIFICATION");
         $display("========================================");
 
-        // Extended simulation timeout to allow the 100-iteration branch 
-        // training loop and deep RAS stack to fully execute
+        // Extended simulation timeout
         #200000; 
         
         $display("========================================");
@@ -38,22 +97,25 @@ module tb_RISCV_Core();
         $finish;
     end
 
-    // Variables for tracking PC and Misprediction Time
+    // ==========================================
+    // 5. Execution Monitoring & Kill-Switches
+    // ==========================================
     reg [31:0] last_pc = 32'hFFFFFFFF; 
     reg [63:0] saved_mispredict_time = 0; 
     
     always @(posedge clk) begin
-        if (!reset && (dut.PCF !== last_pc)) begin
+        // Trace PC progression once out of reset
+        if (rst_n && (dut.PCF !== last_pc)) begin
             $display("Time: %0t | PC: %h | Instruction: %h", $time, dut.PCF, dut.InstrF);
             last_pc <= dut.PCF;
         end
 
-        // Silently capture the time of the misprediction (only records the first occurrence)
+        // Silently capture the time of the first misprediction
         if (dut.Mispredict_Flag == 1'b1 && saved_mispredict_time == 0) begin
             saved_mispredict_time <= $time;
         end
 
-        // SMART KILL-SWITCH: Monitor the Execute Stage (PCE) to ignore ghost fetches!
+        // SMART KILL-SWITCH: Monitor the Execute Stage (PCE) to ignore ghost fetches
         // PC == 0x00000234 is the PASS_TRAP infinite loop
         if (dut.PCE == 32'h00000234) begin
             $display("========================================");

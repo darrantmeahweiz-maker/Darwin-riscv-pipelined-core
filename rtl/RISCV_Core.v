@@ -1,8 +1,24 @@
 `timescale 1ns / 1ps
 
 module RISCV_Core (
-    input wire clk,
-    input wire reset
+    input  wire        clk,
+    input  wire        rst_n,            // Active-low asynchronous reset
+
+    // ==========================================
+    // Instruction Bus Interface (I-Bus)
+    // ==========================================
+    output wire [31:0] i_addr,           // Instruction fetch address (PCF)
+    output wire        i_req,            // Instruction fetch request
+    input  wire [31:0] i_rdata,          // Incoming instruction (InstrF)
+
+    // ==========================================
+    // Data Bus Interface (D-Bus)
+    // ==========================================
+    output wire [31:0] d_addr,           // Memory access address (ALUResultM)
+    output wire [31:0] d_wdata,          // Memory write data (WriteDataM)
+    output wire [3:0]  d_we,             // Byte-write enables (sb=0001, sh=0011, sw=1111)
+    output wire        d_req,            // Memory read/write request
+    input  wire [31:0] d_rdata           // Incoming raw load data
 );
 
     // =========================================================================
@@ -27,7 +43,6 @@ module RISCV_Core (
     wire [4:0]  Rs1D, Rs2D, RdD;
     wire [2:0]  funct3D, ImmSrcD;
     wire [31:0] RD1D, RD2D, ImmExtD;
-    // Control Signals
     wire        RegWriteD, MemWriteD, BranchD, ALUSrcBD;
     wire [1:0]  ResultSrcD, JumpD, ExecSelD, ALUSrcAD, MultControlD, CRCControlD;
     wire [2:0]  BITControlD;
@@ -38,12 +53,10 @@ module RISCV_Core (
     wire [4:0]  Rs1E, Rs2E, RdE;
     wire [2:0]  funct3E;
     wire        Pop_EnableE;
-    // Control Signals
     wire        RegWriteE, MemWriteE, BranchE, ALUSrcBE;
     wire [1:0]  ResultSrcE, JumpE, ExecSelE, ALUSrcAE, MultControlE, CRCControlE;
     wire [2:0]  BITControlE;
     wire [3:0]  ALUControlE;
-    // Execution Data Paths
     wire [31:0] Formatted_SrcAE, Formatted_SrcBE, SrcAE, SrcBE;
     wire [31:0] ALU_OutE, MULT_OutE, CRC_OutE, BITMANIP_OutE, ALUResultE_Final;
     wire [31:0] PCTargetE;
@@ -56,7 +69,6 @@ module RISCV_Core (
     wire [31:0] ALUResultM, WriteDataM, PCPlus4M;
     wire [4:0]  RdM;
     wire [2:0]  funct3M;
-    wire        WE, OE;
     wire [3:0]  BW;
     wire [31:0] ReadDataM_raw, ReadDataM_formatted;
 
@@ -67,9 +79,24 @@ module RISCV_Core (
     wire [4:0]  RdW;
     wire [31:0] ResultW;
 
+    // =========================================================================
+    // 2. BUS PORT ASSIGNMENTS
+    // =========================================================================
+
+    // Instruction Bus Hookup
+    assign i_addr = PCF;
+    assign i_req  = ~StallF;
+    assign InstrF = i_rdata;
+
+    // Data Bus Hookup
+    assign d_addr         = ALUResultM;
+    assign d_wdata        = WriteDataM;
+    assign d_we           = MemWriteM ? BW : 4'b0000;
+    assign d_req          = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
+    assign ReadDataM_raw  = d_rdata;
 
     // =========================================================================
-    // 2. FETCH STAGE (IF)
+    // 3. FETCH STAGE (IF)
     // =========================================================================
 
     MUX_Fetch_Control fetch_mux_ctrl (
@@ -89,7 +116,7 @@ module RISCV_Core (
 
     Register_PC pc_reg (
         .i_Clk(clk),
-        .i_Rst(reset),
+        .rst_n(rst_n),
         .StallF(StallF),
         .PC_next(PC_next),
         .PCF(PCF)
@@ -100,12 +127,6 @@ module RISCV_Core (
         .PCPlus4F(PCPlus4F)
     );
 
-    IMEM instruction_memory (
-        .A(PCF),
-        .RD(InstrF),
-        .OE(1'b1)
-    );
-
     Pre_Decoder pre_decoder (
         .InstrF(InstrF),
         .Push_Enable(Push_EnableF),
@@ -114,7 +135,7 @@ module RISCV_Core (
 
     RAS return_address_stack (
         .i_clk(clk),
-        .i_rst(reset),
+        .rst_n(rst_n),
         .Push_Enable(Push_EnableF),
         .Push_Data(PCPlus4F),
         .Pop_Enable(Pop_EnableF),
@@ -123,6 +144,7 @@ module RISCV_Core (
 
     Register_IF_ID if_id_reg (
         .i_Clk(clk),
+        .rst_n(rst_n),
         .StallD(StallD),
         .FlushD(FlushD),
         .RD(InstrF),
@@ -138,7 +160,7 @@ module RISCV_Core (
     );
 
     // =========================================================================
-    // 3. DECODE STAGE (ID)
+    // 4. DECODE STAGE (ID)
     // =========================================================================
 
     Instruction_Splitter instr_split (
@@ -148,7 +170,8 @@ module RISCV_Core (
         .rs1(Rs1D),
         .funct3(funct3D),
         .rd(RdD),
-        .opcode(opD)
+        .opcode(opD),
+        .Instr()
     );
 
     Control_Unit ctrl_unit (
@@ -178,7 +201,7 @@ module RISCV_Core (
         .ResultW(ResultW),
         .RegWriteW(RegWriteW),
         .i_Clk(clk),
-        .i_Rst(reset),
+        .rst_n(rst_n),
         .RD1D(RD1D),
         .RD2D(RD2D)
     );
@@ -191,6 +214,7 @@ module RISCV_Core (
 
     Register_ID_EX id_ex_reg (
         .i_Clk(clk),
+        .rst_n(rst_n),
         .FlushE(FlushE),
         .RegWriteD(RegWriteD),
         .ResultSrcD(ResultSrcD),
@@ -242,7 +266,7 @@ module RISCV_Core (
     );
 
     // =========================================================================
-    // 4. EXECUTE STAGE (EX)
+    // 5. EXECUTE STAGE (EX)
     // =========================================================================
 
     Mux_ForwardAE mux_fwd_a (
@@ -337,6 +361,7 @@ module RISCV_Core (
 
     Register_EX_MEM ex_mem_reg (
         .i_Clk(clk),
+        .rst_n(rst_n),
         .RegWriteE(RegWriteE),
         .ResultSrcE(ResultSrcE),
         .MemWriteE(MemWriteE),
@@ -357,25 +382,8 @@ module RISCV_Core (
     );
 
     // =========================================================================
-    // 5. MEMORY STAGE (MEM)
+    // 6. MEMORY STAGE (MEM)
     // =========================================================================
-
-    address_decoder addr_dec (
-        .ALUResultM(ALUResultM),
-        .MemWriteM(MemWriteM),
-        .WE(WE),
-        .OE(OE)
-    );
-
-    DMEM data_memory (
-        .i_Clk(clk),
-        .WE(WE),
-        .OE(OE),
-        .BW(BW),
-        .A(ALUResultM),
-        .WD(WriteDataM),
-        .RD(ReadDataM_raw)
-    );
 
     LSU load_store_unit (
         .funct3M(funct3M),
@@ -387,6 +395,7 @@ module RISCV_Core (
 
     Register_MEM_WB mem_wb_reg (
         .i_Clk(clk),
+        .rst_n(rst_n),
         .RegWriteM(RegWriteM),
         .ResultSrcM(ResultSrcM),
         .ALUResultM(ALUResultM),
@@ -403,7 +412,7 @@ module RISCV_Core (
     );
 
     // =========================================================================
-    // 6. WRITEBACK STAGE (WB)
+    // 7. WRITEBACK STAGE (WB)
     // =========================================================================
 
     Mux_ResultSrcW mux_result_w (
@@ -411,11 +420,11 @@ module RISCV_Core (
         .ALUResultW(ALUResultW),
         .ReadDataW(ReadDataW),
         .PCPlus4W(PCPlus4W),
-        .ALUResultE(ResultW) // Mapped to the ResultW wire, despite the port name
+        .ALUResultE(ResultW)
     );
 
     // =========================================================================
-    // 7. HAZARD UNIT
+    // 8. HAZARD UNIT
     // =========================================================================
 
     Hazard_Unit hazard_unit (

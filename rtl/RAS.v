@@ -1,17 +1,16 @@
 module RAS (
-    input           i_clk,
-    input           i_rst,
-    input           Push_Enable,
-    input   [31:0]  Push_Data,
-    input           Pop_Enable,
-    output  [31:0]  Predicted_PC
+    input             i_clk,
+    input             rst_n,
+    input             Push_Enable,
+    input      [31:0] Push_Data,
+    input             Pop_Enable,
+    output     [31:0] Predicted_PC
 );
+    reg [31:0] stack [0:7];
+    reg [2:0]  sp;
 
-    reg [31:0]  stack [0:7];    // 8-entry deep stack
-    reg [2:0]   sp;             // 3-bit Stack Pointer (0 to 7)
-
-    always @(posedge i_clk) begin 
-        if (i_rst) begin
+    always @(posedge i_clk or negedge rst_n) begin 
+        if (!rst_n) begin
             sp <= 3'b000;
         end else if (Push_Enable) begin 
             stack[sp] <= Push_Data;     
@@ -21,6 +20,5 @@ module RAS (
         end
     end
 
-    // Asynchronously read top of stack
     assign Predicted_PC = stack[sp-1];
 endmodule
