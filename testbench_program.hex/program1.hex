@@ -195,3 +195,6 @@ end
 start commend:
 iverilog -o build/core_sim tb/tb_RISCV_Core.v rtl/*.v
 vvp build/core_sim
+
+Copy all rtl file.v into rtl_all.txt:
+for f in rtl/*.v; do echo -e "\n// ========================================\n// File: $f\n// ========================================\n" >> rtl_all.txt; cat "$f" >> rtl_all.txt; done
