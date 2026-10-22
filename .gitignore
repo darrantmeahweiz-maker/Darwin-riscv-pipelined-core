@@ -1,0 +1,20 @@
+
+# Quartus compilation databases & intermediate files
+fpga/db/
+fpga/incremental_db/
+fpga/simulation/
+fpga/c5_pin_model_dump.txt
+fpga/*.qws
+
+# Quartus report files (keep only .sof if desired)
+fpga/output_files/*.rpt
+fpga/output_files/*.summary
+fpga/output_files/*.smsg
+fpga/output_files/*.jdi
+fpga/output_files/*.pin
+fpga/output_files/*.done
+fpga/output_files/*.sld
+
+# Simulator binaries
+sim/test_core
+sim/*.vcd
