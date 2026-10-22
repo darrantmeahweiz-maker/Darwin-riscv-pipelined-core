@@ -33,9 +33,9 @@ module address_decoder (
     // ==========================================
     // Memory Map Decoding
     // ==========================================
-    wire sel_dmem = d_req && (d_addr >= 32'h10010000 && d_addr <= 32'h10010FFF);
-    wire sel_uart = d_req && (d_addr >= 32'h30000000 && d_addr <= 32'h30000004);
-
+    wire sel_dmem = d_req && (d_addr[31:12] == 20'h10010);
+    wire sel_uart = d_req && (d_addr[31:4]  == 28'h3000000);
+    
     // ==========================================
     // Slave Request Routing
     // ==========================================

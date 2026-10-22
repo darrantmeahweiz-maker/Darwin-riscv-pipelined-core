@@ -14,7 +14,7 @@ module IMEM (
     //Address Translation: PC, program counter counts by 4 (0x0, 0x4, 0x8...)
     //Shifting right by 2 (divide by 4) converts byte-address into word_index
     //Assuming IMEM starts at address 0x0000_0000.
-    wire [9:0] word_index = A >>2;
+    wire [9:0] word_index = A[11:2];
 
     //Combinational Read Logic
     always @(*) begin

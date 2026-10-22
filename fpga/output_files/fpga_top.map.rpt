@@ -1,0 +1,746 @@
+Analysis & Synthesis report for fpga_top
+Thu Oct 22 20:26:37 2026
+Quartus Prime Version 25.1std.0 Build 1129 10/21/2025 SC Lite Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Analysis & Synthesis Summary
+  3. Analysis & Synthesis Settings
+  4. Parallel Compilation
+  5. Analysis & Synthesis Source Files Read
+  6. Analysis & Synthesis Resource Usage Summary
+  7. Analysis & Synthesis Resource Utilization by Entity
+  8. Analysis & Synthesis DSP Block Usage Summary
+  9. State Machine - |fpga_top|uart_tx:u_uart|state
+ 10. Registers Removed During Synthesis
+ 11. General Register Statistics
+ 12. Inverted Register Statistics
+ 13. Multiplexer Restructuring Statistics (Restructuring Performed)
+ 14. Parameter Settings for User Entity Instance: RISCV_Core:u_core|Register_File:reg_file
+ 15. Parameter Settings for User Entity Instance: uart_tx:u_uart
+ 16. Port Connectivity Checks: "RISCV_Core:u_core|Instruction_Splitter:instr_split"
+ 17. Port Connectivity Checks: "RISCV_Core:u_core"
+ 18. Post-Synthesis Netlist Statistics for Top Partition
+ 19. Elapsed Time Per Partition
+ 20. Analysis & Synthesis Messages
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2025  Altera Corporation. All rights reserved.
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and any partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, the Altera Quartus Prime License Agreement,
+the Altera IP License Agreement, or other applicable license
+agreement, including, without limitation, that your use is for
+the sole purpose of programming logic devices manufactured by
+Altera and sold by Altera or its authorized distributors.  Please
+refer to the Altera Software License Subscription Agreements 
+on the Quartus Prime software download page.
+
+
+
++-----------------------------------------------------------------------------------+
+; Analysis & Synthesis Summary                                                      ;
++---------------------------------+-------------------------------------------------+
+; Analysis & Synthesis Status     ; Successful - Thu Oct 22 20:26:35 2026           ;
+; Quartus Prime Version           ; 25.1std.0 Build 1129 10/21/2025 SC Lite Edition ;
+; Revision Name                   ; fpga_top                                        ;
+; Top-level Entity Name           ; fpga_top                                        ;
+; Family                          ; Cyclone V                                       ;
+; Logic utilization (in ALMs)     ; N/A                                             ;
+; Total registers                 ; 34689                                           ;
+; Total pins                      ; 68                                              ;
+; Total virtual pins              ; 0                                               ;
+; Total block memory bits         ; 0                                               ;
+; Total DSP Blocks                ; 21                                              ;
+; Total HSSI RX PCSs              ; 0                                               ;
+; Total HSSI PMA RX Deserializers ; 0                                               ;
+; Total HSSI TX PCSs              ; 0                                               ;
+; Total HSSI PMA TX Serializers   ; 0                                               ;
+; Total PLLs                      ; 0                                               ;
+; Total DLLs                      ; 0                                               ;
++---------------------------------+-------------------------------------------------+
+
+
++---------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Settings                                                                                             ;
++---------------------------------------------------------------------------------+--------------------+--------------------+
+; Option                                                                          ; Setting            ; Default Value      ;
++---------------------------------------------------------------------------------+--------------------+--------------------+
+; Device                                                                          ; 5CSEMA5F31C6       ;                    ;
+; Top-level entity name                                                           ; fpga_top           ; fpga_top           ;
+; Family name                                                                     ; Cyclone V          ; Cyclone V          ;
+; Use smart compilation                                                           ; Off                ; Off                ;
+; Enable parallel Assembler and Timing Analyzer during compilation                ; On                 ; On                 ;
+; Enable compact report table                                                     ; Off                ; Off                ;
+; Restructure Multiplexers                                                        ; Auto               ; Auto               ;
+; MLAB Add Timing Constraints For Mixed-Port Feed-Through Mode Setting Don't Care ; Off                ; Off                ;
+; Create Debugging Nodes for IP Cores                                             ; Off                ; Off                ;
+; Preserve fewer node names                                                       ; On                 ; On                 ;
+; Intel FPGA IP Evaluation Mode                                                   ; Enable             ; Enable             ;
+; Verilog Version                                                                 ; Verilog_2001       ; Verilog_2001       ;
+; VHDL Version                                                                    ; VHDL_1993          ; VHDL_1993          ;
+; State Machine Processing                                                        ; Auto               ; Auto               ;
+; Safe State Machine                                                              ; Off                ; Off                ;
+; Extract Verilog State Machines                                                  ; On                 ; On                 ;
+; Extract VHDL State Machines                                                     ; On                 ; On                 ;
+; Ignore Verilog initial constructs                                               ; Off                ; Off                ;
+; Iteration limit for constant Verilog loops                                      ; 5000               ; 5000               ;
+; Iteration limit for non-constant Verilog loops                                  ; 250                ; 250                ;
+; Add Pass-Through Logic to Inferred RAMs                                         ; On                 ; On                 ;
+; Infer RAMs from Raw Logic                                                       ; On                 ; On                 ;
+; Parallel Synthesis                                                              ; On                 ; On                 ;
+; DSP Block Balancing                                                             ; Auto               ; Auto               ;
+; NOT Gate Push-Back                                                              ; On                 ; On                 ;
+; Power-Up Don't Care                                                             ; On                 ; On                 ;
+; Remove Redundant Logic Cells                                                    ; Off                ; Off                ;
+; Remove Duplicate Registers                                                      ; On                 ; On                 ;
+; Ignore CARRY Buffers                                                            ; Off                ; Off                ;
+; Ignore CASCADE Buffers                                                          ; Off                ; Off                ;
+; Ignore GLOBAL Buffers                                                           ; Off                ; Off                ;
+; Ignore ROW GLOBAL Buffers                                                       ; Off                ; Off                ;
+; Ignore LCELL Buffers                                                            ; Off                ; Off                ;
+; Ignore SOFT Buffers                                                             ; On                 ; On                 ;
+; Limit AHDL Integers to 32 Bits                                                  ; Off                ; Off                ;
+; Optimization Technique                                                          ; Balanced           ; Balanced           ;
+; Carry Chain Length                                                              ; 70                 ; 70                 ;
+; Auto Carry Chains                                                               ; On                 ; On                 ;
+; Auto Open-Drain Pins                                                            ; On                 ; On                 ;
+; Perform WYSIWYG Primitive Resynthesis                                           ; Off                ; Off                ;
+; Auto ROM Replacement                                                            ; On                 ; On                 ;
+; Auto RAM Replacement                                                            ; On                 ; On                 ;
+; Auto DSP Block Replacement                                                      ; On                 ; On                 ;
+; Auto Shift Register Replacement                                                 ; Auto               ; Auto               ;
+; Allow Shift Register Merging across Hierarchies                                 ; Auto               ; Auto               ;
+; Auto Clock Enable Replacement                                                   ; On                 ; On                 ;
+; Strict RAM Replacement                                                          ; Off                ; Off                ;
+; Allow Synchronous Control Signals                                               ; On                 ; On                 ;
+; Force Use of Synchronous Clear Signals                                          ; Off                ; Off                ;
+; Auto Resource Sharing                                                           ; Off                ; Off                ;
+; Allow Any RAM Size For Recognition                                              ; Off                ; Off                ;
+; Allow Any ROM Size For Recognition                                              ; Off                ; Off                ;
+; Allow Any Shift Register Size For Recognition                                   ; Off                ; Off                ;
+; Use LogicLock Constraints during Resource Balancing                             ; On                 ; On                 ;
+; Ignore translate_off and synthesis_off directives                               ; Off                ; Off                ;
+; Timing-Driven Synthesis                                                         ; On                 ; On                 ;
+; Report Parameter Settings                                                       ; On                 ; On                 ;
+; Report Source Assignments                                                       ; On                 ; On                 ;
+; Report Connectivity Checks                                                      ; On                 ; On                 ;
+; Ignore Maximum Fan-Out Assignments                                              ; Off                ; Off                ;
+; Synchronization Register Chain Length                                           ; 3                  ; 3                  ;
+; Power Optimization During Synthesis                                             ; Normal compilation ; Normal compilation ;
+; HDL message level                                                               ; Level2             ; Level2             ;
+; Suppress Register Optimization Related Messages                                 ; Off                ; Off                ;
+; Number of Removed Registers Reported in Synthesis Report                        ; 5000               ; 5000               ;
+; Number of Swept Nodes Reported in Synthesis Report                              ; 5000               ; 5000               ;
+; Number of Inverted Registers Reported in Synthesis Report                       ; 100                ; 100                ;
+; Clock MUX Protection                                                            ; On                 ; On                 ;
+; Auto Gated Clock Conversion                                                     ; Off                ; Off                ;
+; Block Design Naming                                                             ; Auto               ; Auto               ;
+; SDC constraint protection                                                       ; Off                ; Off                ;
+; Synthesis Effort                                                                ; Auto               ; Auto               ;
+; Shift Register Replacement - Allow Asynchronous Clear Signal                    ; On                 ; On                 ;
+; Pre-Mapping Resynthesis Optimization                                            ; Off                ; Off                ;
+; Analysis & Synthesis Message Level                                              ; Medium             ; Medium             ;
+; Disable Register Merging Across Hierarchies                                     ; Auto               ; Auto               ;
+; Resource Aware Inference For Block RAM                                          ; On                 ; On                 ;
+; Automatic Parallel Synthesis                                                    ; On                 ; On                 ;
+; Partial Reconfiguration Bitstream ID                                            ; Off                ; Off                ;
++---------------------------------------------------------------------------------+--------------------+--------------------+
+
+
++------------------------------------------+
+; Parallel Compilation                     ;
++----------------------------+-------------+
+; Processors                 ; Number      ;
++----------------------------+-------------+
+; Number detected on machine ; 16          ;
+; Maximum allowed            ; 16          ;
+;                            ;             ;
+; Average used               ; 4.69        ;
+; Maximum used               ; 16          ;
+;                            ;             ;
+; Usage by Processor         ; % Time Used ;
+;     Processor 1            ; 100.0%      ;
+;     Processor 2            ;  29.8%      ;
+;     Processor 3            ;  29.8%      ;
+;     Processor 4            ;  29.7%      ;
+;     Processor 5            ;  29.7%      ;
+;     Processor 6            ;  29.7%      ;
+;     Processor 7            ;  29.7%      ;
+;     Processor 8            ;  29.7%      ;
+;     Processor 9            ;  29.7%      ;
+;     Processor 10           ;  19.1%      ;
+;     Processor 11           ;  19.1%      ;
+;     Processor 12           ;  19.1%      ;
+;     Processor 13           ;  19.1%      ;
+;     Processor 14           ;  19.1%      ;
+;     Processor 15           ;  19.1%      ;
+;     Processor 16           ;  16.7%      ;
++----------------------------+-------------+
+
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Source Files Read                                                                                                                                                                                                                ;
++-----------------------------------------------------------------------------------------+-----------------+---------------------------------------+-----------------------------------------------------------------------------------------+---------+
+; File Name with User-Entered Path                                                        ; Used in Netlist ; File Type                             ; File Name with Absolute Path                                                            ; Library ;
++-----------------------------------------------------------------------------------------+-----------------+---------------------------------------+-----------------------------------------------------------------------------------------+---------+
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/program.hex           ; yes             ; User Hexadecimal (Intel-Format) File  ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/program.hex           ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v            ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v            ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/UART_TX.v              ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/UART_TX.v              ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v           ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v           ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_PC.v          ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_PC.v          ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_MEM_WB.v      ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_MEM_WB.v      ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_IF_ID.v       ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_IF_ID.v       ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_ID_EX.v       ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_ID_EX.v       ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_File.v        ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_File.v        ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_EX_MEM.v      ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_EX_MEM.v      ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v                  ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v                  ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Pre_Decoder.v          ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Pre_Decoder.v          ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Next_PC_Logic.v        ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Next_PC_Logic.v        ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ResultSrcW.v       ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ResultSrcW.v       ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_PC.v               ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_PC.v               ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardBE.v        ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardBE.v        ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardAE.v        ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardAE.v        ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MUX_Fetch_Control.v    ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MUX_Fetch_Control.v    ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ExecSelE.v         ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ExecSelE.v         ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcBE.v         ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcBE.v         ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcAE.v         ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcAE.v         ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MULT.v                 ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MULT.v                 ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/LSU.v                  ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/LSU.v                  ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Instruction_Splitter.v ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Instruction_Splitter.v ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v                 ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v                 ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Hazard_Unit.v          ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Hazard_Unit.v          ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Extend.v               ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Extend.v               ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/DMEM.v                 ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/DMEM.v                 ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/CRC.v                  ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/CRC.v                  ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Control_Unit.v         ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Control_Unit.v         ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Branch_Monitor.v       ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Branch_Monitor.v       ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/BITMANIP.v             ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/BITMANIP.v             ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/ALU.v                  ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/ALU.v                  ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Address_Decoder.v      ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Address_Decoder.v      ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PCPlus4.v        ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PCPlus4.v        ;         ;
+; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PC_Target.v      ; yes             ; User Verilog HDL File                 ; //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PC_Target.v      ;         ;
++-----------------------------------------------------------------------------------------+-----------------+---------------------------------------+-----------------------------------------------------------------------------------------+---------+
+
+
++--------------------------------------------------------------+
+; Analysis & Synthesis Resource Usage Summary                  ;
++---------------------------------------------+----------------+
+; Resource                                    ; Usage          ;
++---------------------------------------------+----------------+
+; Estimate of Logic utilization (ALMs needed) ; 24614          ;
+;                                             ;                ;
+; Combinational ALUT usage for logic          ; 18107          ;
+;     -- 7 input functions                    ; 113            ;
+;     -- 6 input functions                    ; 12376          ;
+;     -- 5 input functions                    ; 621            ;
+;     -- 4 input functions                    ; 315            ;
+;     -- <=3 input functions                  ; 4682           ;
+;                                             ;                ;
+; Dedicated logic registers                   ; 34689          ;
+;                                             ;                ;
+; I/O pins                                    ; 68             ;
+;                                             ;                ;
+; Total DSP Blocks                            ; 21             ;
+;                                             ;                ;
+; Maximum fan-out node                        ; CLOCK_50~input ;
+; Maximum fan-out                             ; 34689          ;
+; Total fan-out                               ; 200040         ;
+; Average fan-out                             ; 3.78           ;
++---------------------------------------------+----------------+
+
+
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Resource Utilization by Entity                                                                                                                                                                                                 ;
++------------------------------------------+---------------------+---------------------------+-------------------+------------+------+--------------+--------------------------------------------------------------+-------------------+--------------+
+; Compilation Hierarchy Node               ; Combinational ALUTs ; Dedicated Logic Registers ; Block Memory Bits ; DSP Blocks ; Pins ; Virtual Pins ; Full Hierarchy Name                                          ; Entity Name       ; Library Name ;
++------------------------------------------+---------------------+---------------------------+-------------------+------------+------+--------------+--------------------------------------------------------------+-------------------+--------------+
+; |fpga_top                                ; 18107 (18)          ; 34689 (3)                 ; 0                 ; 21         ; 68   ; 0            ; |fpga_top                                                    ; fpga_top          ; work         ;
+;    |DMEM:u_dmem|                         ; 15096 (15096)       ; 32800 (32800)             ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|DMEM:u_dmem                                        ; DMEM              ; work         ;
+;    |IMEM:u_imem|                         ; 134 (134)           ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|IMEM:u_imem                                        ; IMEM              ; work         ;
+;    |RISCV_Core:u_core|                   ; 2749 (5)            ; 1853 (0)                  ; 0                 ; 21         ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core                                  ; RISCV_Core        ; work         ;
+;       |ALU:main_alu|                     ; 513 (513)           ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|ALU:main_alu                     ; ALU               ; work         ;
+;       |Adder_PCPlus4:pc_plus_4|          ; 30 (30)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Adder_PCPlus4:pc_plus_4          ; Adder_PCPlus4     ; work         ;
+;       |Adder_PC_Target:pc_target_adder|  ; 32 (32)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Adder_PC_Target:pc_target_adder  ; Adder_PC_Target   ; work         ;
+;       |BITMANIP:exec_bitmanip|           ; 208 (208)           ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip           ; BITMANIP          ; work         ;
+;       |Branch_Monitor:branch_monitor|    ; 54 (54)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Branch_Monitor:branch_monitor    ; Branch_Monitor    ; work         ;
+;       |CRC:exec_crc|                     ; 152 (152)           ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|CRC:exec_crc                     ; CRC               ; work         ;
+;       |Control_Unit:ctrl_unit|           ; 31 (31)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Control_Unit:ctrl_unit           ; Control_Unit      ; work         ;
+;       |Hazard_Unit:hazard_unit|          ; 22 (22)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Hazard_Unit:hazard_unit          ; Hazard_Unit       ; work         ;
+;       |LSU:load_store_unit|              ; 30 (30)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|LSU:load_store_unit              ; LSU               ; work         ;
+;       |MULT:exec_mult|                   ; 202 (202)           ; 0 (0)                     ; 0                 ; 21         ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|MULT:exec_mult                   ; MULT              ; work         ;
+;       |MUX_Fetch_Control:fetch_mux_ctrl| ; 4 (4)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|MUX_Fetch_Control:fetch_mux_ctrl ; MUX_Fetch_Control ; work         ;
+;       |Mux_ALUSrcAE:mux_alu_a|           ; 72 (72)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_ALUSrcAE:mux_alu_a           ; Mux_ALUSrcAE      ; work         ;
+;       |Mux_ALUSrcBE:mux_alu_b|           ; 32 (32)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_ALUSrcBE:mux_alu_b           ; Mux_ALUSrcBE      ; work         ;
+;       |Mux_ExecSelE:mux_exec_sel|        ; 294 (294)           ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel        ; Mux_ExecSelE      ; work         ;
+;       |Mux_ForwardBE:mux_fwd_b|          ; 65 (65)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_ForwardBE:mux_fwd_b          ; Mux_ForwardBE     ; work         ;
+;       |Mux_PC:pc_mux|                    ; 37 (37)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_PC:pc_mux                    ; Mux_PC            ; work         ;
+;       |Mux_ResultSrcW:mux_result_w|      ; 32 (32)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Mux_ResultSrcW:mux_result_w      ; Mux_ResultSrcW    ; work         ;
+;       |Next_PC_Logic:next_pc_logic|      ; 25 (25)             ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Next_PC_Logic:next_pc_logic      ; Next_PC_Logic     ; work         ;
+;       |Pre_Decoder:pre_decoder|          ; 6 (6)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Pre_Decoder:pre_decoder          ; Pre_Decoder       ; work         ;
+;       |RAS:return_address_stack|         ; 69 (69)             ; 259 (259)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|RAS:return_address_stack         ; RAS               ; work         ;
+;       |Register_EX_MEM:ex_mem_reg|       ; 0 (0)               ; 108 (108)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_EX_MEM:ex_mem_reg       ; Register_EX_MEM   ; work         ;
+;       |Register_File:reg_file|           ; 59 (59)             ; 992 (992)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_File:reg_file           ; Register_File     ; work         ;
+;       |Register_ID_EX:id_ex_reg|         ; 766 (766)           ; 232 (232)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg         ; Register_ID_EX    ; work         ;
+;       |Register_IF_ID:if_id_reg|         ; 3 (3)               ; 126 (126)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_IF_ID:if_id_reg         ; Register_IF_ID    ; work         ;
+;       |Register_MEM_WB:mem_wb_reg|       ; 3 (3)               ; 104 (104)                 ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_MEM_WB:mem_wb_reg       ; Register_MEM_WB   ; work         ;
+;       |Register_PC:pc_reg|               ; 3 (3)               ; 32 (32)                   ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|RISCV_Core:u_core|Register_PC:pc_reg               ; Register_PC       ; work         ;
+;    |address_decoder:u_bus|               ; 32 (32)             ; 1 (1)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|address_decoder:u_bus                              ; address_decoder   ; work         ;
+;    |hex_digit_decoder:seg0|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg0                             ; hex_digit_decoder ; work         ;
+;    |hex_digit_decoder:seg1|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg1                             ; hex_digit_decoder ; work         ;
+;    |hex_digit_decoder:seg2|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg2                             ; hex_digit_decoder ; work         ;
+;    |hex_digit_decoder:seg3|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg3                             ; hex_digit_decoder ; work         ;
+;    |hex_digit_decoder:seg4|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg4                             ; hex_digit_decoder ; work         ;
+;    |hex_digit_decoder:seg5|              ; 7 (7)               ; 0 (0)                     ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|hex_digit_decoder:seg5                             ; hex_digit_decoder ; work         ;
+;    |uart_tx:u_uart|                      ; 36 (36)             ; 32 (32)                   ; 0                 ; 0          ; 0    ; 0            ; |fpga_top|uart_tx:u_uart                                     ; uart_tx           ; work         ;
++------------------------------------------+---------------------+---------------------------+-------------------+------------+------+--------------+--------------------------------------------------------------+-------------------+--------------+
+Note: For table entries with two numbers listed, the numbers in parentheses indicate the number of resources of the given type used by the specific entity alone. The numbers listed outside of parentheses indicate the total resources of the given type used by the specific entity and all of its sub-entities in the hierarchy.
+
+
++-----------------------------------------------+
+; Analysis & Synthesis DSP Block Usage Summary  ;
++---------------------------------+-------------+
+; Statistic                       ; Number Used ;
++---------------------------------+-------------+
+; Two Independent 18x18           ; 7           ;
+; Sum of two 18x18                ; 3           ;
+; Independent 27x27               ; 11          ;
+; Total number of DSP blocks      ; 21          ;
+;                                 ;             ;
+; Fixed Point Unsigned Multiplier ; 24          ;
++---------------------------------+-------------+
+
+
+Encoding Type:  One-Hot
++------------------------------------------------------------------------------------------------+
+; State Machine - |fpga_top|uart_tx:u_uart|state                                                 ;
++-------------------+------------------+------------------+-------------------+------------------+
+; Name              ; state.STATE_STOP ; state.STATE_DATA ; state.STATE_START ; state.STATE_IDLE ;
++-------------------+------------------+------------------+-------------------+------------------+
+; state.STATE_IDLE  ; 0                ; 0                ; 0                 ; 0                ;
+; state.STATE_START ; 0                ; 0                ; 1                 ; 1                ;
+; state.STATE_DATA  ; 0                ; 1                ; 0                 ; 1                ;
+; state.STATE_STOP  ; 1                ; 0                ; 0                 ; 1                ;
++-------------------+------------------+------------------+-------------------+------------------+
+
+
++--------------------------------------------------------------------------------------------------------------------------------+
+; Registers Removed During Synthesis                                                                                             ;
++-------------------------------------------------------------+------------------------------------------------------------------+
+; Register name                                               ; Reason for Removal                                               ;
++-------------------------------------------------------------+------------------------------------------------------------------+
+; RISCV_Core:u_core|Register_IF_ID:if_id_reg|PCPlus4D[1]      ; Merged with RISCV_Core:u_core|Register_IF_ID:if_id_reg|PCD[1]    ;
+; RISCV_Core:u_core|Register_IF_ID:if_id_reg|PCPlus4D[0]      ; Merged with RISCV_Core:u_core|Register_IF_ID:if_id_reg|PCD[0]    ;
+; RISCV_Core:u_core|Register_ID_EX:id_ex_reg|PCPlus4E[1]      ; Merged with RISCV_Core:u_core|Register_ID_EX:id_ex_reg|PCE[1]    ;
+; RISCV_Core:u_core|Register_ID_EX:id_ex_reg|PCPlus4E[0]      ; Merged with RISCV_Core:u_core|Register_ID_EX:id_ex_reg|PCE[0]    ;
+; RISCV_Core:u_core|Register_IF_ID:if_id_reg|InstrD[0]        ; Merged with RISCV_Core:u_core|Register_IF_ID:if_id_reg|InstrD[1] ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][0]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][4]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][2]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][3]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][1]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][6]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][5]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][7]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][8]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][10] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][9]  ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][11] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][12] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][14] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][13] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][15] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][16] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][18] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][17] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][19] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][20] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][22] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][21] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][23] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][24] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][26] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][25] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][27] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][28] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][30] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][29] ; Stuck at GND due to stuck port clock_enable                      ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[0][31] ; Stuck at GND due to stuck port clock_enable                      ;
+; uart_tx:u_uart|state~8                                      ; Lost fanout                                                      ;
+; uart_tx:u_uart|state~9                                      ; Lost fanout                                                      ;
+; Total Number of Removed Registers = 39                      ;                                                                  ;
++-------------------------------------------------------------+------------------------------------------------------------------+
+
+
++------------------------------------------------------+
+; General Register Statistics                          ;
++----------------------------------------------+-------+
+; Statistic                                    ; Value ;
++----------------------------------------------+-------+
+; Total registers                              ; 34689 ;
+; Number of registers using Synchronous Clear  ; 363   ;
+; Number of registers using Synchronous Load   ; 40    ;
+; Number of registers using Asynchronous Clear ; 1633  ;
+; Number of registers using Asynchronous Load  ; 0     ;
+; Number of registers using Clock Enable       ; 34659 ;
+; Number of registers using Preset             ; 0     ;
++----------------------------------------------+-------+
+
+
++-----------------------------------------------------------------------+
+; Inverted Register Statistics                                          ;
++-------------------------------------------------------------+---------+
+; Inverted Register                                           ; Fan out ;
++-------------------------------------------------------------+---------+
+; uart_tx:u_uart|tx_pin                                       ; 1       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][4]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][3]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][2]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][5]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][7]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][6]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][8]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][9]  ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][11] ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][10] ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][16] ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[3][16] ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[2][28] ; 2       ;
+; RISCV_Core:u_core|Register_File:reg_file|r_Registers[3][28] ; 2       ;
+; Total number of inverted registers = 15                     ;         ;
++-------------------------------------------------------------+---------+
+
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Multiplexer Restructuring Statistics (Restructuring Performed)                                                                                                                     ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------------------------+
+; Multiplexer Inputs ; Bus Width ; Baseline Area ; Area if Restructured ; Saving if Restructured ; Registered ; Example Multiplexer Output                                           ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------------------------+
+; 3:1                ; 8 bits    ; 16 LEs        ; 0 LEs                ; 16 LEs                 ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_MEM_WB:mem_wb_reg|ReadDataW[25] ;
+; 4:1                ; 8 bits    ; 16 LEs        ; 16 LEs               ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_MEM_WB:mem_wb_reg|ReadDataW[8]  ;
+; 5:1                ; 6 bits    ; 18 LEs        ; 18 LEs               ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_MEM_WB:mem_wb_reg|ReadDataW[6]  ;
+; 1024:1             ; 32 bits   ; 21824 LEs     ; 21824 LEs            ; 0 LEs                  ; Yes        ; |fpga_top|DMEM:u_dmem|RD[31]                                         ;
+; 4:1                ; 8 bits    ; 16 LEs        ; 16 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|LSU:load_store_unit|Formatted_ReadDataM  ;
+; 3:1                ; 9 bits    ; 18 LEs        ; 18 LEs               ; 0 LEs                  ; No         ; |fpga_top|address_decoder:u_bus|d_rdata[20]                          ;
+; 3:1                ; 3 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |fpga_top|uart_tx:u_uart|bit_idx                                     ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|d_we[1]                                  ;
+; 6:1                ; 2 bits    ; 8 LEs         ; 4 LEs                ; 4 LEs                  ; No         ; |fpga_top|uart_tx:u_uart|Selector21                                  ;
+; 8:1                ; 2 bits    ; 10 LEs        ; 6 LEs                ; 4 LEs                  ; No         ; |fpga_top|uart_tx:u_uart|Selector22                                  ;
+; 4:1                ; 2 bits    ; 4 LEs         ; 4 LEs                ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_PC:pc_reg|PCF[0]                ;
+; 4:1                ; 30 bits   ; 60 LEs        ; 60 LEs               ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_PC:pc_reg|PCF[23]               ;
+; 3:1                ; 6 bits    ; 12 LEs        ; 12 LEs               ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|ImmExtE[5]      ;
+; 3:1                ; 2 bits    ; 4 LEs         ; 2 LEs                ; 2 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|RAS:return_address_stack|sp[2]           ;
+; 3:1                ; 126 bits  ; 252 LEs       ; 0 LEs                ; 252 LEs                ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_IF_ID:if_id_reg|PCPlus4D[26]    ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|ExecSelE[0]     ;
+; 6:1                ; 11 bits   ; 44 LEs        ; 22 LEs               ; 22 LEs                 ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|ImmExtE[20]     ;
+; 5:1                ; 2 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|CRCControlE[1]  ;
+; 5:1                ; 2 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|MultControlE[1] ;
+; 5:1                ; 4 bits    ; 12 LEs        ; 12 LEs               ; 0 LEs                  ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|ImmExtE[4]      ;
+; 9:1                ; 8 bits    ; 48 LEs        ; 0 LEs                ; 48 LEs                 ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|ImmExtE[19]     ;
+; 35:1               ; 32 bits   ; 736 LEs       ; 704 LEs              ; 32 LEs                 ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|RD1E[22]        ;
+; 35:1               ; 32 bits   ; 736 LEs       ; 704 LEs              ; 32 LEs                 ; Yes        ; |fpga_top|RISCV_Core:u_core|Register_ID_EX:id_ex_reg|RD2E[4]         ;
+; 4:1                ; 32 bits   ; 64 LEs        ; 64 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ForwardBE:mux_fwd_b|Mux6             ;
+; 4:1                ; 32 bits   ; 64 LEs        ; 64 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ResultSrcW:mux_result_w|Mux22        ;
+; 4:1                ; 2 bits    ; 4 LEs         ; 4 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight0                 ;
+; 4:1                ; 49 bits   ; 98 LEs        ; 98 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight1                 ;
+; 3:1                ; 2 bits    ; 4 LEs         ; 4 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight1                 ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight0                 ;
+; 4:1                ; 9 bits    ; 18 LEs        ; 18 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight1                 ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftLeft0                  ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftLeft0                  ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftLeft0                  ;
+; 3:1                ; 3 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight0                 ;
+; 4:1                ; 3 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight0                 ;
+; 4:1                ; 2 bits    ; 4 LEs         ; 4 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftRight0       ;
+; 4:1                ; 2 bits    ; 4 LEs         ; 4 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftLeft1        ;
+; 4:1                ; 50 bits   ; 100 LEs       ; 100 LEs              ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftRight0       ;
+; 4:1                ; 8 bits    ; 16 LEs        ; 16 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftRight0       ;
+; 4:1                ; 8 bits    ; 16 LEs        ; 16 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftRight0       ;
+; 4:1                ; 8 bits    ; 16 LEs        ; 16 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftLeft1        ;
+; 3:1                ; 32 bits   ; 64 LEs        ; 64 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftRight0       ;
+; 4:1                ; 3 bits    ; 6 LEs         ; 6 LEs                ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight1                 ;
+; 5:1                ; 12 bits   ; 36 LEs        ; 36 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftLeft0                  ;
+; 6:1                ; 32 bits   ; 128 LEs       ; 96 LEs               ; 32 LEs                 ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ALUSrcAE:mux_alu_a|Mux27             ;
+; 7:1                ; 3 bits    ; 12 LEs        ; 12 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftRight1                 ;
+; 6:1                ; 24 bits   ; 96 LEs        ; 96 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftLeft1        ;
+; 8:1                ; 4 bits    ; 20 LEs        ; 20 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|ShiftLeft0                  ;
+; 9:1                ; 8 bits    ; 48 LEs        ; 48 LEs               ; 0 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|BITMANIP:exec_bitmanip|ShiftLeft1        ;
+; 14:1               ; 25 bits   ; 225 LEs       ; 200 LEs              ; 25 LEs                 ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|Mux12                       ;
+; 15:1               ; 2 bits    ; 20 LEs        ; 16 LEs               ; 4 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|Mux6                        ;
+; 16:1               ; 2 bits    ; 20 LEs        ; 18 LEs               ; 2 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|ALU:main_alu|Mux22                       ;
+; 17:1               ; 16 bits   ; 176 LEs       ; 144 LEs              ; 32 LEs                 ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel|Mux15          ;
+; 19:1               ; 8 bits    ; 96 LEs        ; 80 LEs               ; 16 LEs                 ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel|Mux18          ;
+; 19:1               ; 2 bits    ; 24 LEs        ; 20 LEs               ; 4 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel|Mux24          ;
+; 43:1               ; 2 bits    ; 56 LEs        ; 54 LEs               ; 2 LEs                  ; No         ; |fpga_top|RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel|Mux27          ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------------------------------------------------+
+
+
++---------------------------------------------------------------------------------------+
+; Parameter Settings for User Entity Instance: RISCV_Core:u_core|Register_File:reg_file ;
++------------------+-------+------------------------------------------------------------+
+; Parameter Name   ; Value ; Type                                                       ;
++------------------+-------+------------------------------------------------------------+
+; p_DATA_DMEM_SIZE ; 4096  ; Signed Integer                                             ;
++------------------+-------+------------------------------------------------------------+
+Note: In order to hide this table in the UI and the text report file, please set the "Show Parameter Settings in Synthesis Report" option in "Analysis and Synthesis Settings -> More Settings" to "Off".
+
+
++-------------------------------------------------------------+
+; Parameter Settings for User Entity Instance: uart_tx:u_uart ;
++----------------+----------+---------------------------------+
+; Parameter Name ; Value    ; Type                            ;
++----------------+----------+---------------------------------+
+; CLK_FREQ       ; 50000000 ; Signed Integer                  ;
+; BAUD_RATE      ; 115200   ; Signed Integer                  ;
++----------------+----------+---------------------------------+
+Note: In order to hide this table in the UI and the text report file, please set the "Show Parameter Settings in Synthesis Report" option in "Analysis and Synthesis Settings -> More Settings" to "Off".
+
+
++--------------------------------------------------------------------------------+
+; Port Connectivity Checks: "RISCV_Core:u_core|Instruction_Splitter:instr_split" ;
++-------+--------+----------+----------------------------------------------------+
+; Port  ; Type   ; Severity ; Details                                            ;
++-------+--------+----------+----------------------------------------------------+
+; Instr ; Output ; Info     ; Explicitly unconnected                             ;
++-------+--------+----------+----------------------------------------------------+
+
+
++-----------------------------------------------------------------------------------------------------------------------------+
+; Port Connectivity Checks: "RISCV_Core:u_core"                                                                               ;
++-------------------+--------+----------+-------------------------------------------------------------------------------------+
+; Port              ; Type   ; Severity ; Details                                                                             ;
++-------------------+--------+----------+-------------------------------------------------------------------------------------+
+; o_debug_x4[31..8] ; Output ; Info     ; Connected to dangling logic. Logic that only feeds a dangling port will be removed. ;
++-------------------+--------+----------+-------------------------------------------------------------------------------------+
+
+
++-----------------------------------------------------+
+; Post-Synthesis Netlist Statistics for Top Partition ;
++-----------------------+-----------------------------+
+; Type                  ; Count                       ;
++-----------------------+-----------------------------+
+; arriav_ff             ; 34689                       ;
+;     CLR               ; 14                          ;
+;     CLR SCLR SLD      ; 16                          ;
+;     ENA               ; 33056                       ;
+;     ENA CLR           ; 1248                        ;
+;     ENA CLR SCLR      ; 331                         ;
+;     ENA CLR SCLR SLD  ; 16                          ;
+;     ENA CLR SLD       ; 8                           ;
+; arriav_lcell_comb     ; 18115                       ;
+;     arith             ; 166                         ;
+;         0 data inputs ; 1                           ;
+;         1 data inputs ; 52                          ;
+;         2 data inputs ; 80                          ;
+;         5 data inputs ; 33                          ;
+;     extend            ; 113                         ;
+;         7 data inputs ; 113                         ;
+;     normal            ; 17672                       ;
+;         0 data inputs ; 1                           ;
+;         1 data inputs ; 22                          ;
+;         2 data inputs ; 252                         ;
+;         3 data inputs ; 4119                        ;
+;         4 data inputs ; 314                         ;
+;         5 data inputs ; 588                         ;
+;         6 data inputs ; 12376                       ;
+;     shared            ; 164                         ;
+;         0 data inputs ; 3                           ;
+;         1 data inputs ; 1                           ;
+;         2 data inputs ; 40                          ;
+;         3 data inputs ; 119                         ;
+;         4 data inputs ; 1                           ;
+; arriav_mac            ; 21                          ;
+; boundary_port         ; 68                          ;
+;                       ;                             ;
+; Max LUT depth         ; 17.00                       ;
+; Average LUT depth     ; 5.43                        ;
++-----------------------+-----------------------------+
+
+
++-------------------------------+
+; Elapsed Time Per Partition    ;
++----------------+--------------+
+; Partition Name ; Elapsed Time ;
++----------------+--------------+
+; Top            ; 00:01:12     ;
++----------------+--------------+
+
+
++-------------------------------+
+; Analysis & Synthesis Messages ;
++-------------------------------+
+Info: *******************************************************************
+Info: Running Quartus Prime Analysis & Synthesis
+    Info: Version 25.1std.0 Build 1129 10/21/2025 SC Lite Edition
+    Info: Processing started: Thu Oct 22 20:24:44 2026
+Info: Command: quartus_map --read_settings_files=on --write_settings_files=off fpga_top -c fpga_top
+Warning (18236): Number of processors has not been specified which may cause overloading on shared machines.  Set the global assignment NUM_PARALLEL_PROCESSORS in your QSF to an appropriate value for best performance.
+Info (20030): Parallel compilation is enabled and will use 16 of the 16 processors detected
+Info (12021): Found 2 design units, including 2 entities, in source file fpga_top.v
+    Info (12023): Found entity 1: fpga_top File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 3
+    Info (12023): Found entity 2: hex_digit_decoder File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 166
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/uart_tx.v
+    Info (12023): Found entity 1: uart_tx File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/UART_TX.v Line: 3
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/riscv_core.v
+    Info (12023): Found entity 1: RISCV_Core File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 3
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_pc.v
+    Info (12023): Found entity 1: Register_PC File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_PC.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_mem_wb.v
+    Info (12023): Found entity 1: Register_MEM_WB File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_MEM_WB.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_if_id.v
+    Info (12023): Found entity 1: Register_IF_ID File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_IF_ID.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_id_ex.v
+    Info (12023): Found entity 1: Register_ID_EX File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_ID_EX.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_file.v
+    Info (12023): Found entity 1: Register_File File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_File.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/register_ex_mem.v
+    Info (12023): Found entity 1: Register_EX_MEM File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_EX_MEM.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/ras.v
+    Info (12023): Found entity 1: RAS File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/pre_decoder.v
+    Info (12023): Found entity 1: Pre_Decoder File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Pre_Decoder.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/next_pc_logic.v
+    Info (12023): Found entity 1: Next_PC_Logic File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Next_PC_Logic.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_resultsrcw.v
+    Info (12023): Found entity 1: Mux_ResultSrcW File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ResultSrcW.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_pc.v
+    Info (12023): Found entity 1: Mux_PC File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_PC.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_forwardbe.v
+    Info (12023): Found entity 1: Mux_ForwardBE File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardBE.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_forwardae.v
+    Info (12023): Found entity 1: Mux_ForwardAE File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardAE.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_fetch_control.v
+    Info (12023): Found entity 1: MUX_Fetch_Control File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MUX_Fetch_Control.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_execsele.v
+    Info (12023): Found entity 1: Mux_ExecSelE File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ExecSelE.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_alusrcbe.v
+    Info (12023): Found entity 1: Mux_ALUSrcBE File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcBE.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mux_alusrcae.v
+    Info (12023): Found entity 1: Mux_ALUSrcAE File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcAE.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/mult.v
+    Info (12023): Found entity 1: MULT File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MULT.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/lsu.v
+    Info (12023): Found entity 1: LSU File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/LSU.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/instruction_splitter.v
+    Info (12023): Found entity 1: Instruction_Splitter File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Instruction_Splitter.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/imem.v
+    Info (12023): Found entity 1: IMEM File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/hazard_unit.v
+    Info (12023): Found entity 1: Hazard_Unit File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Hazard_Unit.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/extend.v
+    Info (12023): Found entity 1: extend File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Extend.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/dmem.v
+    Info (12023): Found entity 1: DMEM File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/DMEM.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/crc.v
+    Info (12023): Found entity 1: CRC File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/CRC.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/control_unit.v
+    Info (12023): Found entity 1: Control_Unit File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Control_Unit.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/branch_monitor.v
+    Info (12023): Found entity 1: Branch_Monitor File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Branch_Monitor.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/bitmanip.v
+    Info (12023): Found entity 1: BITMANIP File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/BITMANIP.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/alu.v
+    Info (12023): Found entity 1: ALU File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/ALU.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/address_decoder.v
+    Info (12023): Found entity 1: address_decoder File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Address_Decoder.v Line: 3
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/adder_pcplus4.v
+    Info (12023): Found entity 1: Adder_PCPlus4 File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PCPlus4.v Line: 1
+Info (12021): Found 1 design units, including 1 entities, in source file //wsl.localhost/ubuntu/home/userdarrant/riscv-pipelined-core/rtl/adder_pc_target.v
+    Info (12023): Found entity 1: Adder_PC_Target File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PC_Target.v Line: 1
+Info (12127): Elaborating entity "fpga_top" for the top level hierarchy
+Info (12128): Elaborating entity "RISCV_Core" for hierarchy "RISCV_Core:u_core" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 83
+Info (12128): Elaborating entity "MUX_Fetch_Control" for hierarchy "RISCV_Core:u_core|MUX_Fetch_Control:fetch_mux_ctrl" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 113
+Info (12128): Elaborating entity "Mux_PC" for hierarchy "RISCV_Core:u_core|Mux_PC:pc_mux" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 122
+Info (12128): Elaborating entity "Register_PC" for hierarchy "RISCV_Core:u_core|Register_PC:pc_reg" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 130
+Info (12128): Elaborating entity "Adder_PCPlus4" for hierarchy "RISCV_Core:u_core|Adder_PCPlus4:pc_plus_4" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 135
+Info (12128): Elaborating entity "Pre_Decoder" for hierarchy "RISCV_Core:u_core|Pre_Decoder:pre_decoder" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 141
+Info (12128): Elaborating entity "RAS" for hierarchy "RISCV_Core:u_core|RAS:return_address_stack" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 150
+Warning (10230): Verilog HDL assignment warning at RAS.v(17): truncated value with size 32 to match size of target (3) File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v Line: 17
+Warning (10230): Verilog HDL assignment warning at RAS.v(19): truncated value with size 32 to match size of target (3) File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v Line: 19
+Info (12128): Elaborating entity "Register_IF_ID" for hierarchy "RISCV_Core:u_core|Register_IF_ID:if_id_reg" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 167
+Info (12128): Elaborating entity "Instruction_Splitter" for hierarchy "RISCV_Core:u_core|Instruction_Splitter:instr_split" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 182
+Info (12128): Elaborating entity "Control_Unit" for hierarchy "RISCV_Core:u_core|Control_Unit:ctrl_unit" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 202
+Info (12128): Elaborating entity "Register_File" for hierarchy "RISCV_Core:u_core|Register_File:reg_file" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 215
+Warning (10240): Verilog HDL Always Construct warning at Register_File.v(27): inferring latch(es) for variable "i", which holds its previous value in one or more paths through the always construct File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_File.v Line: 27
+Info (12128): Elaborating entity "extend" for hierarchy "RISCV_Core:u_core|extend:imm_extend" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 221
+Info (12128): Elaborating entity "Register_ID_EX" for hierarchy "RISCV_Core:u_core|Register_ID_EX:id_ex_reg" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 275
+Info (12128): Elaborating entity "Mux_ForwardAE" for hierarchy "RISCV_Core:u_core|Mux_ForwardAE:mux_fwd_a" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 287
+Info (12128): Elaborating entity "Mux_ForwardBE" for hierarchy "RISCV_Core:u_core|Mux_ForwardBE:mux_fwd_b" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 295
+Info (12128): Elaborating entity "Mux_ALUSrcAE" for hierarchy "RISCV_Core:u_core|Mux_ALUSrcAE:mux_alu_a" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 302
+Info (12128): Elaborating entity "Mux_ALUSrcBE" for hierarchy "RISCV_Core:u_core|Mux_ALUSrcBE:mux_alu_b" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 309
+Info (12128): Elaborating entity "ALU" for hierarchy "RISCV_Core:u_core|ALU:main_alu" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 317
+Info (12128): Elaborating entity "MULT" for hierarchy "RISCV_Core:u_core|MULT:exec_mult" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 324
+Info (12128): Elaborating entity "CRC" for hierarchy "RISCV_Core:u_core|CRC:exec_crc" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 331
+Info (12128): Elaborating entity "BITMANIP" for hierarchy "RISCV_Core:u_core|BITMANIP:exec_bitmanip" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 338
+Warning (10240): Verilog HDL Always Construct warning at BITMANIP.v(11): inferring latch(es) for variable "i", which holds its previous value in one or more paths through the always construct File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/BITMANIP.v Line: 11
+Info (12128): Elaborating entity "Mux_ExecSelE" for hierarchy "RISCV_Core:u_core|Mux_ExecSelE:mux_exec_sel" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 347
+Info (12128): Elaborating entity "Adder_PC_Target" for hierarchy "RISCV_Core:u_core|Adder_PC_Target:pc_target_adder" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 353
+Info (12128): Elaborating entity "Next_PC_Logic" for hierarchy "RISCV_Core:u_core|Next_PC_Logic:next_pc_logic" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 362
+Info (12128): Elaborating entity "Branch_Monitor" for hierarchy "RISCV_Core:u_core|Branch_Monitor:branch_monitor" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 369
+Info (12128): Elaborating entity "Register_EX_MEM" for hierarchy "RISCV_Core:u_core|Register_EX_MEM:ex_mem_reg" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 392
+Info (12128): Elaborating entity "LSU" for hierarchy "RISCV_Core:u_core|LSU:load_store_unit" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 404
+Warning (10270): Verilog HDL Case Statement warning at LSU.v(18): incomplete case statement has no default case item File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/LSU.v Line: 18
+Info (12128): Elaborating entity "Register_MEM_WB" for hierarchy "RISCV_Core:u_core|Register_MEM_WB:mem_wb_reg" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 423
+Info (12128): Elaborating entity "Mux_ResultSrcW" for hierarchy "RISCV_Core:u_core|Mux_ResultSrcW:mux_result_w" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 435
+Info (12128): Elaborating entity "Hazard_Unit" for hierarchy "RISCV_Core:u_core|Hazard_Unit:hazard_unit" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v Line: 464
+Info (12128): Elaborating entity "IMEM" for hierarchy "IMEM:u_imem" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 89
+Warning (10850): Verilog HDL warning at IMEM.v(11): number of words (178) in memory file does not match the number of elements in the address range [0:1023] File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 11
+Warning (10230): Verilog HDL assignment warning at IMEM.v(17): truncated value with size 32 to match size of target (10) File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 17
+Warning (10030): Net "ROM.data_a" at IMEM.v(7) has no driver or initial value, using a default initial value '0' File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 7
+Warning (10030): Net "ROM.waddr_a" at IMEM.v(7) has no driver or initial value, using a default initial value '0' File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 7
+Warning (10030): Net "ROM.we_a" at IMEM.v(7) has no driver or initial value, using a default initial value '0' File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v Line: 7
+Info (12128): Elaborating entity "address_decoder" for hierarchy "address_decoder:u_bus" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 107
+Info (12128): Elaborating entity "DMEM" for hierarchy "DMEM:u_dmem" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 117
+Info (12128): Elaborating entity "uart_tx" for hierarchy "uart_tx:u_uart" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 132
+Info (12128): Elaborating entity "hex_digit_decoder" for hierarchy "hex_digit_decoder:seg0" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 155
+Info (286030): Timing-Driven Synthesis is running
+Info (276014): Found 1 instances of uninferred RAM logic
+    Info (276007): RAM logic "RISCV_Core:u_core|RAS:return_address_stack|stack" is uninferred due to asynchronous read logic File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v Line: 9
+Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/db/fpga_top.ram0_IMEM_257482.hdl.mif" contains "don't care" values -- overwriting them with 0s
+Warning (13024): Output pins are stuck at VCC or GND
+    Warning (13410): Pin "LEDR[3]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+    Warning (13410): Pin "LEDR[4]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+    Warning (13410): Pin "LEDR[5]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+    Warning (13410): Pin "LEDR[6]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+    Warning (13410): Pin "LEDR[7]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+    Warning (13410): Pin "LEDR[8]" is stuck at GND File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 8
+Info (17049): 2 registers lost all their fanouts during netlist optimizations.
+Info (16010): Generating hard_block partition "hard_block:auto_generated_inst"
+    Info (16011): Adding 0 node(s), including 0 DDIO, 0 PLL, 0 transceiver and 0 LCELL
+Warning (21074): Design contains 13 input pin(s) that do not drive logic
+    Warning (15610): No output dependent on input pin "KEY[1]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 5
+    Warning (15610): No output dependent on input pin "KEY[2]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 5
+    Warning (15610): No output dependent on input pin "KEY[3]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 5
+    Warning (15610): No output dependent on input pin "SW[0]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[1]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[2]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[3]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[4]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[5]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[6]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[7]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[8]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+    Warning (15610): No output dependent on input pin "SW[9]" File: //wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v Line: 6
+Info (21057): Implemented 52595 device resources after synthesis - the final resource count might be different
+    Info (21058): Implemented 15 input pins
+    Info (21059): Implemented 53 output pins
+    Info (21061): Implemented 52506 logic cells
+    Info (21062): Implemented 21 DSP elements
+Info: Quartus Prime Analysis & Synthesis was successful. 0 errors, 33 warnings
+    Info: Peak virtual memory: 5410 megabytes
+    Info: Processing ended: Thu Oct 22 20:26:37 2026
+    Info: Elapsed time: 00:01:53
+    Info: Total CPU time (on all processors): 00:03:29
+
+

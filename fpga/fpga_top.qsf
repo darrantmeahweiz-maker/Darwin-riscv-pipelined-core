@@ -136,3 +136,59 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to UART_TXD
 # C - Temperature Grade (Commercial operating range 0 - 85C )
 # 6 - Speed Grade (Silicon switching speed rating)
 # =========================================================================
+set_global_assignment -name LAST_QUARTUS_VERSION "25.1std.0 Lite Edition"
+set_global_assignment -name HEX_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/program.hex"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.v"
+set_global_assignment -name SDC_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/fpga/fpga_top.sdc"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/UART_TX.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RISCV_Core.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_PC.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_MEM_WB.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_IF_ID.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_ID_EX.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_File.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Register_EX_MEM.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/RAS.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Pre_Decoder.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Next_PC_Logic.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ResultSrcW.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_PC.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardBE.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ForwardAE.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MUX_Fetch_Control.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ExecSelE.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcBE.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Mux_ALUSrcAE.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/MULT.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/LSU.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Instruction_Splitter.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/IMEM.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Hazard_Unit.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Extend.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/DMEM.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/CRC.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Control_Unit.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Branch_Monitor.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/BITMANIP.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/ALU.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Address_Decoder.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PCPlus4.v"
+set_global_assignment -name VERILOG_FILE "//wsl.localhost/Ubuntu/home/userdarrant/riscv-pipelined-core/rtl/Adder_PC_Target.v"
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
+set_global_assignment -name EDA_SIMULATION_TOOL "Questa Altera FPGA (Verilog)"
+set_global_assignment -name EDA_NETLIST_WRITER_OUTPUT_DIR simulation/questa -section_id eda_simulation
+set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "VERILOG HDL" -section_id eda_simulation
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_timing
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_symbol
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_signal_integrity
+set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top

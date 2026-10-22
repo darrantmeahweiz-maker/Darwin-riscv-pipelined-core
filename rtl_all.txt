@@ -165,52 +165,60 @@ endmodule
 // File: rtl/BITMANIP.v
 // ========================================
 
-module BITMANIP(
-    input       [31:0]  SrcAE,
-    input       [31:0]  SrcBE,
-    input       [2:0]   BIT_Control,
-    output reg  [31:0]  BIT_Result
+module BITMANIP (
+    input  wire [31:0] SrcAE,
+    input  wire [31:0] SrcBE,
+    input  wire [2:0]  BIT_Control,
+    output reg  [31:0] BIT_Result
 );
 
-integer i;
+    always @(*) begin : proc_bitmanip
+        integer i;
+        
+        BIT_Result = 32'h00000000;
 
-always @(*) begin
-    case (BIT_Control)
-        3'b000: begin              // clz (count leading zero)
-            BIT_Result = 32'd32;     // Default if all zeros   
-            for (i = 0; i < 32; i = i + 1) begin  // Loop from LSB to MSB
-                if (SrcAE[i]) begin        
-                    BIT_Result = 31 - i;
+        case (BIT_Control)
+            3'b000: begin // clz (count leading zeros)
+                BIT_Result = 32'd32;
+                for (i = 0; i < 32; i = i + 1) begin
+                    if (SrcAE[i]) begin
+                        BIT_Result = 31 - i;
+                    end
                 end
             end
-        end
-        3'b001: begin              // cpop (population count)
-            BIT_Result = 32'd0;    
-            // Sums up all bits. Synthesizer turns this into parallel adder tree
-            for (i = 0; i < 32; i = i + 1) begin
-                BIT_Result = BIT_Result + SrcAE[i];
+
+            3'b001: begin // cpop (population count)
+                BIT_Result = 32'd0;
+                for (i = 0; i < 32; i = i + 1) begin
+                    BIT_Result = BIT_Result + SrcAE[i];
+                end
             end
-        end 
-        3'b010: begin              // rev8 (byte reverse)
-            BIT_Result = {SrcAE[7:0], SrcAE[15:8], SrcAE[23:16], SrcAE[31:24]}; // using concatenation
-        end
-        3'b011: begin              // rol (rotate left)
-            if (SrcBE[4:0] == 5'd0) begin  
-                BIT_Result = SrcAE;
-            end else begin
-                BIT_Result = (SrcAE << SrcBE[4:0]) | (SrcAE >> (6'd32 - SrcBE[4:0]));
+
+            3'b010: begin // rev8 (byte reverse / endian swap)
+                BIT_Result = {SrcAE[7:0], SrcAE[15:8], SrcAE[23:16], SrcAE[31:24]};
             end
-        end
-        3'b100: begin              // ror (Rotate Right)
-            if (SrcBE[4:0] == 5'd0) begin  
-                BIT_Result = SrcAE;
-            end else begin
-                BIT_Result = (SrcAE >> SrcBE[4:0]) | (SrcAE << (6'd32 - SrcBE[4:0]));
+
+            3'b011: begin // rol (rotate left)
+                if (SrcBE[4:0] == 5'd0) begin
+                    BIT_Result = SrcAE;
+                end else begin
+                    BIT_Result = (SrcAE << SrcBE[4:0]) | (SrcAE >> (6'd32 - SrcBE[4:0]));
+                end
             end
-        end
-        default: BIT_Result = 32'h00000000;
-    endcase  
-end
+
+            3'b100: begin // ror (rotate right)
+                if (SrcBE[4:0] == 5'd0) begin
+                    BIT_Result = SrcAE;
+                end else begin
+                    BIT_Result = (SrcAE >> SrcBE[4:0]) | (SrcAE << (6'd32 - SrcBE[4:0]));
+                end
+            end
+
+            default: begin
+                BIT_Result = 32'h00000000;
+            end
+        endcase
+    end
 
 endmodule
 // ========================================
@@ -345,21 +353,21 @@ module Control_Unit (
                 ALUSrcBD    = (op == 7'b0010011);
                 ImmSrcD     = 3'b000;
 
-                if (op == 7'b0010011) begin
-                    case ({funct3, rs2D})
-                        8'b001_00000: begin
+               if (op == 7'b0010011) begin
+                    case ({funct7, funct3, rs2D})
+                        {7'b0110000, 3'b001, 5'b00000}: begin // clz
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b000;
                         end
-                        8'b001_00010: begin
+                        {7'b0110000, 3'b001, 5'b00010}: begin // cpop
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b001;
                         end
-                        8'b101_11000: begin
+                        {7'b0110100, 3'b101, 5'b11000}: begin // rev8
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b010;
                         end
-                        default: ;
+                        default: ; // Preserves standard slli, srli, srai
                     endcase
                 end else begin
                     case (funct7)
@@ -600,7 +608,7 @@ module Hazard_Unit (
         // ----------------------------------------------------
         // 2. Load-Use Hazard Detection (ID Stage)
         // ----------------------------------------------------
-        if ((ResultSrcE[0] == 1'b1) && ((RdE == Rs1D) || (RdE == Rs2D))) begin
+        if ((ResultSrcE[0] == 1'b1) && (RdE != 5'b00000) && ((RdE == Rs1D) || (RdE == Rs2D))) begin
             lwStall = 1'b1;
         end else begin
             lwStall = 1'b0;
@@ -703,80 +711,99 @@ endmodule
 // ========================================
 
 module LSU (
-    input       [2:0]   funct3M,
-    input       [1:0]   ALUResultM,         //bottom 2 bits for alignment
-    input       [31:0]  RD,                 //RD from DMEM, then to ReadDataW
-    output reg  [3:0]   BW,                 //BW from funct3M, thento DMEM
-    output reg  [31:0]  Formatted_ReadDataM 
+    input  wire [2:0]  funct3M,
+    input  wire [1:0]  ALUResultM,          // Bottom 2 bits for byte alignment
+    input  wire [31:0] RD,                  // Raw read data from DMEM
+    output reg  [3:0]  BW,                  // Byte write enable to DMEM
+    output reg  [31:0] Formatted_ReadDataM  // Formatted data to Writeback
 );
 
-always @(*) begin
-    //Default
-    BW = 4'b0000;
-    Formatted_ReadDataM = 32'h00000000;
+    always @(*) begin
+        // Default assignments
+        BW                  = 4'b0000;
+        Formatted_ReadDataM = 32'h00000000;
 
-    //Write path -- generate byte enable (BW) for DMEM
-    //bottom 2 bit of funct3M: 00(sb), 01(sh), 10(sw)
-    /*NOTE: Load instruction share these code, 
-    but DMEM will just ignore the BW output if WE pin is set to 0 */
-    case (funct3M[1:0])
-        2'b00: begin
-            case (ALUResultM)       //sb, save byte
-                2'b00: BW = 4'b0001;
-                2'b01: BW = 4'b0010;
-                2'b10: BW = 4'b0100;
-                2'b11: BW = 4'b1000;
-            endcase
-        end
-        2'b01: begin
-            case (ALUResultM[1])    //sh, save halfword
-                1'b0: BW = 4'b0011;
-                1'b1: BW = 4'b1100;
-            endcase
-        end
-        2'b10: begin
-            BW = 4'b1111;           //sw, save word
-        end
-    endcase
+        // -------------------------------------------------------------
+        // Write Path: Byte Enable (BW) generation
+        // -------------------------------------------------------------
+        case (funct3M[1:0])
+            2'b00: begin // sb (store byte)
+                case (ALUResultM)
+                    2'b00:   BW = 4'b0001;
+                    2'b01:   BW = 4'b0010;
+                    2'b10:   BW = 4'b0100;
+                    2'b11:   BW = 4'b1000;
+                    default: BW = 4'b0001;
+                endcase
+            end
 
-    //Read path
-    case (funct3M)
-        3'b000: begin   //lb (load byte, sign-extended)
-            case (ALUResultM)
-                2'b00: Formatted_ReadDataM = {{24{RD[7]}}, RD[7:0]};
-                2'b01: Formatted_ReadDataM = {{24{RD[15]}}, RD[15:8]};
-                2'b10: Formatted_ReadDataM = {{24{RD[23]}}, RD[23:16]};
-                2'b11: Formatted_ReadDataM = {{24{RD[31]}}, RD[31:24]};
-            endcase
-        end
-        3'b100: begin   //lbu (load byte unsigned, zero-extended)
-            case (ALUResultM)
-                2'b00: Formatted_ReadDataM = {24'b0, RD[7:0]};
-                2'b01: Formatted_ReadDataM = {24'b0, RD[15:8]};
-                2'b10: Formatted_ReadDataM = {24'b0, RD[23:16]};
-                2'b11: Formatted_ReadDataM = {24'b0, RD[31:24]};
-            endcase
-        end
-        3'b001: begin   //lh (load halfword, sign-extended)
-            case (ALUResultM[1])
-                1'b0: Formatted_ReadDataM = {{16{RD[15]}}, RD[15:0]};
-                1'b1: Formatted_ReadDataM = {{16{RD[31]}}, RD[31:16]};
-            endcase
-        end
-        3'b101: begin   //lhu (Load Halfword Unsigned, Zero-Extended)
-            case (ALUResultM[1])
-                1'b0: Formatted_ReadDataM = {16'b0, RD[15:0]};
-                1'b1: Formatted_ReadDataM = {16'b0, RD[31:16]};
-            endcase
-        end
-        3'b010: begin   //lw (load word)
-            Formatted_ReadDataM = RD;
-        end
-        default: begin
-            Formatted_ReadDataM = RD;
-        end
-    endcase
-end
+            2'b01: begin // sh (store halfword)
+                case (ALUResultM[1])
+                    1'b0:    BW = 4'b0011;
+                    1'b1:    BW = 4'b1100;
+                    default: BW = 4'b0011;
+                endcase
+            end
+
+            2'b10: begin // sw (store word)
+                BW = 4'b1111;
+            end
+
+            default: begin
+                BW = 4'b0000;
+            end
+        endcase
+
+        // -------------------------------------------------------------
+        // Read Path: Sign/Zero extension and sub-word alignment
+        // -------------------------------------------------------------
+        case (funct3M)
+            3'b000: begin // lb (load byte, sign-extended)
+                case (ALUResultM)
+                    2'b00:   Formatted_ReadDataM = {{24{RD[7]}},  RD[7:0]};
+                    2'b01:   Formatted_ReadDataM = {{24{RD[15]}}, RD[15:8]};
+                    2'b10:   Formatted_ReadDataM = {{24{RD[23]}}, RD[23:16]};
+                    2'b11:   Formatted_ReadDataM = {{24{RD[31]}}, RD[31:24]};
+                    default: Formatted_ReadDataM = {{24{RD[7]}},  RD[7:0]};
+                endcase
+            end
+
+            3'b100: begin // lbu (load byte unsigned, zero-extended)
+                case (ALUResultM)
+                    2'b00:   Formatted_ReadDataM = {24'b0, RD[7:0]};
+                    2'b01:   Formatted_ReadDataM = {24'b0, RD[15:8]};
+                    2'b10:   Formatted_ReadDataM = {24'b0, RD[23:16]};
+                    2'b11:   Formatted_ReadDataM = {24'b0, RD[31:24]};
+                    default: Formatted_ReadDataM = {24'b0, RD[7:0]};
+                endcase
+            end
+
+            3'b001: begin // lh (load halfword, sign-extended)
+                case (ALUResultM[1])
+                    1'b0:    Formatted_ReadDataM = {{16{RD[15]}}, RD[15:0]};
+                    1'b1:    Formatted_ReadDataM = {{16{RD[31]}}, RD[31:16]};
+                    default: Formatted_ReadDataM = {{16{RD[15]}}, RD[15:0]};
+                endcase
+            end
+
+            3'b101: begin // lhu (load halfword unsigned, zero-extended)
+                case (ALUResultM[1])
+                    1'b0:    Formatted_ReadDataM = {16'b0, RD[15:0]};
+                    1'b1:    Formatted_ReadDataM = {16'b0, RD[31:16]};
+                    default: Formatted_ReadDataM = {16'b0, RD[15:0]};
+                endcase
+            end
+
+            3'b010: begin // lw (load word)
+                Formatted_ReadDataM = RD;
+            end
+
+            default: begin
+                Formatted_ReadDataM = RD;
+            end
+        endcase
+    end
+
 endmodule
 // ========================================
 // File: rtl/MULT.v
@@ -1215,12 +1242,12 @@ module RISCV_Core (
     );
 
     RAS return_address_stack (
-        .i_clk(clk),
-        .rst_n(rst_n),
-        .Push_Enable(Push_EnableF),
-        .Push_Data(PCPlus4F),
-        .Pop_Enable(Pop_EnableF),
-        .Predicted_PC(Predicted_PCF)
+        .i_clk        (clk),
+        .rst_n        (rst_n),
+        .Push_Enable  (Push_EnableF & ~StallF), // Gated: push only on valid new fetch
+        .Push_Data    (PCPlus4F),
+        .Pop_Enable   (Pop_EnableF & ~StallF),  // Gated: pop only on valid new fetch
+        .Predicted_PC (Predicted_PCF)
     );
 
     Register_IF_ID if_id_reg (
@@ -1611,18 +1638,21 @@ module Register_File # (
     input  wire        i_Clk,
     input  wire        rst_n,
     output wire [31:0] RD1D,
-    output wire [31:0] RD2D
+    output wire [31:0] RD2D,
+    output wire [31:0] o_debug_x4   //add this port
 );
+
+    assign o_debug_x4 = r_Registers[4];     //to direct read of x4
+
     localparam c_SP_Index = 2;
     localparam c_GP_Index = 3;
     localparam c_GP_Initial_Value = 32'h10010000;
     localparam c_SP_Initial_Value = c_GP_Initial_Value + p_DATA_DMEM_SIZE - 4;
 
     reg [31:0] r_Registers [0:31];
-    integer i;
-
-    // Unified Positive-Edge Triggered Write (Eliminates Half-Cycle STA Path)
+        // Unified Positive-Edge Triggered Write (Eliminates Half-Cycle STA Path)
     always @(posedge i_Clk or negedge rst_n) begin
+        integer i;
         if (!rst_n) begin
             for (i = 0; i < 32; i = i + 1) begin
                 case (i)

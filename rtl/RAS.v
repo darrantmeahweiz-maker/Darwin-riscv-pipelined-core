@@ -1,10 +1,10 @@
 module RAS (
-    input             i_clk,
-    input             rst_n,
-    input             Push_Enable,
-    input      [31:0] Push_Data,
-    input             Pop_Enable,
-    output     [31:0] Predicted_PC
+    input  wire        i_clk,
+    input  wire        rst_n,
+    input  wire        Push_Enable,
+    input  wire [31:0] Push_Data,
+    input  wire        Pop_Enable,
+    output wire [31:0] Predicted_PC
 );
     reg [31:0] stack [0:7];
     reg [2:0]  sp;
@@ -14,11 +14,11 @@ module RAS (
             sp <= 3'b000;
         end else if (Push_Enable) begin 
             stack[sp] <= Push_Data;     
-            sp <= sp + 1;
+            sp <= sp + 3'd1;
         end else if (Pop_Enable) begin
-            sp <= sp - 1;
+            sp <= sp - 3'd1;
         end
     end
 
-    assign Predicted_PC = stack[sp-1];
+    assign Predicted_PC = stack[sp - 3'd1];
 endmodule

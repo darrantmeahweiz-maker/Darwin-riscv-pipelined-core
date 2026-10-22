@@ -431,7 +431,7 @@ module RISCV_Core (
         .ALUResultW(ALUResultW),
         .ReadDataW(ReadDataW),
         .PCPlus4W(PCPlus4W),
-        .ALUResultE(ResultW)
+        .ResultW(ResultW)      
     );
 
     // =========================================================================
