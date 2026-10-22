@@ -1,19 +1,20 @@
 module Register_MEM_WB(
-    input             i_Clk,
-    input             rst_n,
-    input             RegWriteM,
-    input      [1:0]  ResultSrcM,
-    input      [31:0] ALUResultM,
-    input      [31:0] Formatted_RD,
-    input      [4:0]  RdM,
-    input      [31:0] PCPlus4M,
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    input  wire        StallW,       // Freezes WB stage during D-Bus wait-states
+    input  wire        RegWriteM,
+    input  wire [1:0]  ResultSrcM,
+    input  wire [31:0] ALUResultM,
+    input  wire [31:0] Formatted_RD,
+    input  wire [4:0]  RdM,
+    input  wire [31:0] PCPlus4M,
 
-    output reg        RegWriteW,
-    output reg [1:0]  ResultSrcW,
-    output reg [31:0] ALUResultW,
-    output reg [31:0] ReadDataW,
-    output reg [4:0]  RdW,
-    output reg [31:0] PCPlus4W
+    output reg         RegWriteW,
+    output reg  [1:0]  ResultSrcW,
+    output reg  [31:0] ALUResultW,
+    output reg  [31:0] ReadDataW,
+    output reg  [4:0]  RdW,
+    output reg  [31:0] PCPlus4W
 );
     always @(posedge i_Clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -23,7 +24,7 @@ module Register_MEM_WB(
             ReadDataW  <= 32'h0;
             RdW        <= 5'b0;
             PCPlus4W   <= 32'h0;
-        end else begin
+        end else if (!StallW) begin
             RegWriteW  <= RegWriteM;
             ResultSrcW <= ResultSrcM;
             ALUResultW <= ALUResultM;

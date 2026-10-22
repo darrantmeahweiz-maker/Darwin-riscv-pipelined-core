@@ -42,7 +42,7 @@ always @(*) begin
                 2'b00: Formatted_ReadDataM = {{24{RD[7]}}, RD[7:0]};
                 2'b01: Formatted_ReadDataM = {{24{RD[15]}}, RD[15:8]};
                 2'b10: Formatted_ReadDataM = {{24{RD[23]}}, RD[23:16]};
-                2'b11: Formatted_ReadDataM = {{24{RD[23]}}, RD[23:16]};
+                2'b11: Formatted_ReadDataM = {{24{RD[31]}}, RD[31:24]};
             endcase
         end
         3'b100: begin   //lbu (load byte unsigned, zero-extended)
@@ -50,7 +50,7 @@ always @(*) begin
                 2'b00: Formatted_ReadDataM = {24'b0, RD[7:0]};
                 2'b01: Formatted_ReadDataM = {24'b0, RD[15:8]};
                 2'b10: Formatted_ReadDataM = {24'b0, RD[23:16]};
-                2'b11: Formatted_ReadDataM = {24'b0, RD[23:16]};
+                2'b11: Formatted_ReadDataM = {24'b0, RD[31:24]};
             endcase
         end
         3'b001: begin   //lh (load halfword, sign-extended)

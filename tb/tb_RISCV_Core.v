@@ -63,6 +63,8 @@ module tb_RISCV_Core();
     // 4. Address Decoder & Bus Interconnect
     // ==========================================
     address_decoder addr_dec (
+        .clk        (clk),
+        .rst_n      (rst_n),
         // Master Interface (From Core)
         .d_addr     (d_addr),
         .d_wdata    (d_wdata),
@@ -82,7 +84,6 @@ module tb_RISCV_Core();
         .uart_rdata (uart_rdata),
         .uart_ready (uart_ready)
     );
-
     // ==========================================
     // 5. Data Memory (RAM)
     // ==========================================

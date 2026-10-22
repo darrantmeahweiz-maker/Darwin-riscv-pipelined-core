@@ -399,6 +399,7 @@ module RISCV_Core (
     Register_MEM_WB mem_wb_reg (
         .i_Clk(clk),
         .rst_n(rst_n),
+        .StallW(StallM),
         .RegWriteM(RegWriteM),
         .ResultSrcM(ResultSrcM),
         .ALUResultM(ALUResultM),

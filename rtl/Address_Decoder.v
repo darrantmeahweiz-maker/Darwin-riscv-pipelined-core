@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
 module address_decoder (
+    input  wire        clk,
+    input  wire        rst_n,
+
     // ==========================================
     // Master Interface (From RISCV_Core D-Bus)
     // ==========================================
@@ -30,8 +33,6 @@ module address_decoder (
     // ==========================================
     // Memory Map Decoding
     // ==========================================
-    // 0x1001_0000 - 0x1001_0FFF : 4KB DMEM
-    // 0x3000_0000 - 0x3000_0004 : UART Controller
     wire sel_dmem = d_req && (d_addr >= 32'h10010000 && d_addr <= 32'h10010FFF);
     wire sel_uart = d_req && (d_addr >= 32'h30000000 && d_addr <= 32'h30000004);
 
@@ -45,6 +46,21 @@ module address_decoder (
     assign uart_re = sel_uart && (d_we == 4'b0000);
 
     // ==========================================
+    // 1-Cycle Synchronous BRAM Read Handshake
+    // ==========================================
+    reg dmem_read_ready;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dmem_read_ready <= 1'b0;
+        end else if (dmem_oe && !dmem_read_ready) begin
+            dmem_read_ready <= 1'b1; // Data latched into BRAM output register
+        end else begin
+            dmem_read_ready <= 1'b0; // Ready for next access
+        end
+    end
+
+    // ==========================================
     // Master Response Multiplexing
     // ==========================================
     always @(*) begin
@@ -53,10 +69,11 @@ module address_decoder (
             d_ready = uart_ready;
         end else if (sel_dmem) begin
             d_rdata = dmem_rdata;
-            d_ready = 1'b1;         // Combinational/distributed RAM is always ready
+            // Writes finish in 1 cycle; Reads wait 1 cycle for synchronous BRAM output
+            d_ready = dmem_oe ? dmem_read_ready : 1'b1;
         end else begin
             d_rdata = 32'h00000000;
-            d_ready = 1'b1;         // Prevent lockup on unmapped addresses
+            d_ready = 1'b1;
         end
     end
 
