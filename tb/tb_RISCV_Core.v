@@ -21,6 +21,10 @@ module tb_RISCV_Core();
     wire [31:0] d_rdata;
     wire        d_ready;
 
+    // Core Diagnostic / Debug Ports
+    wire        core_mispredict;
+    wire [31:0] core_x4;
+
     // Slave 0: Data Memory (Address Decoder <-> DMEM)
     wire        dmem_we;
     wire        dmem_oe;
@@ -37,17 +41,19 @@ module tb_RISCV_Core();
     // 2. Pure Core Instantiation (DUT)
     // ==========================================
     RISCV_Core dut (
-        .clk     (clk),
-        .rst_n   (rst_n),
-        .i_addr  (i_addr),
-        .i_req   (i_req),
-        .i_rdata (i_rdata),
-        .d_addr  (d_addr),
-        .d_wdata (d_wdata),
-        .d_we    (d_we),
-        .d_req   (d_req),
-        .d_rdata (d_rdata),
-        .d_ready (d_ready)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .i_addr            (i_addr),
+        .i_req             (i_req),
+        .i_rdata           (i_rdata),
+        .d_addr            (d_addr),
+        .d_wdata           (d_wdata),
+        .d_we              (d_we),
+        .d_req             (d_req),
+        .d_rdata           (d_rdata),
+        .d_ready           (d_ready),
+        .o_mispredict_flag (core_mispredict), // Debug port
+        .o_debug_x4        (core_x4)          // Debug port: register x4 status
     );
 
     // ==========================================
@@ -84,6 +90,7 @@ module tb_RISCV_Core();
         .uart_rdata (uart_rdata),
         .uart_ready (uart_ready)
     );
+
     // ==========================================
     // 5. Data Memory (RAM)
     // ==========================================
@@ -102,7 +109,7 @@ module tb_RISCV_Core();
     // ==========================================
     uart_tx #(
         .CLK_FREQ  (100_000_000), // Match 100MHz testbench clock
-        .BAUD_RATE (10_000_000)
+        .BAUD_RATE (10_000_000)   // Accelerated baud for fast simulation
     ) u_uart (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -130,20 +137,21 @@ module tb_RISCV_Core();
         $dumpfile("build/core_waveform.vcd");
         $dumpvars(0, tb_RISCV_Core);
 
-        // Active-low asynchronous reset
+        // Active-low asynchronous reset pulse
         rst_n = 1'b0;
         #20; 
         rst_n = 1'b1;
         
-        $display("========================================");
-        $display(" 🚀 RISC-V SOC INTERCONNECT & UART VERIFICATION");
-        $display("========================================");
+        $display("=========================================================");
+        $display(" 🚀 RISC-V EXTENDED VERIFICATION (BUGS 1, 2 & 4 AUDIT)");
+        $display("=========================================================");
 
-        #200000; 
+        #300000; 
         
-        $display("========================================");
-        $display(" 🛑 SIMULATION TIMEOUT REACHED (TEST FAILED)");
-        $display("========================================");
+        $display("=========================================================");
+        $display(" 🛑 SIMULATION TIMEOUT REACHED (TEST FAILED / STALLED)");
+        $display(" Last PC Executed: 0x%08h | Status Register x4: 0x%08h", dut.PCE, core_x4);
+        $display("=========================================================");
         $finish;
     end
 
@@ -163,39 +171,49 @@ module tb_RISCV_Core();
     reg [63:0] saved_mispredict_time = 0; 
     
     always @(posedge clk) begin
+        // Live Instruction Trace
         if (rst_n && (dut.PCF !== last_pc)) begin
-            $display("Time: %0t | PC: %h | Instruction: %h", $time, dut.PCF, dut.InstrF);
+            $display("Time: %0t | PC: 0x%h | Instr: 0x%h", $time, dut.PCF, dut.InstrF);
             last_pc <= dut.PCF;
         end
 
-        if (dut.Mispredict_Flag == 1'b1 && saved_mispredict_time == 0) begin
+        // Track Speculative Recovery Events
+        if (core_mispredict && saved_mispredict_time == 0) begin
             saved_mispredict_time <= $time;
         end
 
-        // PASS_TRAP (0x00000234)
-        // SMART KILL-SWITCH:
-        // PC == 0x00000250 is the new PASS_TRAP infinite loop after UART transmission
-        // In Section 10 of tb_RISCV_Core.v:
-    // PC == 0x00000264 is the true final PASS_TRAP loop
-        if (dut.PCE == 32'h00000264) begin
-            $display("========================================");
-            $display(" ✅ TEST PASSED!");
-            $display(" 🏁 All ISA, Hazards, Interconnect, and UART tests completed.");
-            $display("    Self-Check Status Register (x4) is 0x00000000.");
+        // ---------------------------------------------------------------------
+        // PASS KILL-SWITCH: Final infinite loop at 0x000002C4
+        // ---------------------------------------------------------------------
+        if (dut.PCE == 32'h000002C4) begin
+            $display("=========================================================");
+            $display(" ✅ ALL TESTS PASSED!");
+            $display(" 🏁 Core successfully passed all 14 test suites:");
+            $display("    - Standard RV32I Base ALU, Shifts, Branches, Memory");
+            $display("    - Custom Extensions: Zmmul, Xicrc, Zbb");
+            $display("    - Bug 1 Audit: No shift hijacking on slli/srli");
+            $display("    - Bug 2 Audit: No false stalls or corruption on x0");
+            $display("    - Bug 4 Audit: RAS stack push gating under pipeline stalls");
+            $display("    - SoC Interconnect: UART flow control & bus arbitration");
+            $display(" Status Register x4 = 0x%08h", core_x4);
             if (saved_mispredict_time > 0) begin
-                $display(" 💡 [%0t] RAS Overflow/Mispredict Detected! Healing pipeline...", saved_mispredict_time);
+                $display(" 💡 [%0t] RAS Recovery Event verified natively.", saved_mispredict_time);
             end
-            $display("========================================");
-            #1000; // Allow final character to flush
+            $display("=========================================================");
+            #2000; // Allow remaining UART frame to finish
             $finish;
-            end
-        // FAIL_TRAP (0x00000230)
-        else if (dut.PCE == 32'h00000230) begin
-            $display("========================================");
+        end
+
+        // ---------------------------------------------------------------------
+        // FAIL KILL-SWITCHES: Divergence to any fail trap
+        // ---------------------------------------------------------------------
+        else if (dut.PCE == 32'h000002A4 || dut.PCE == 32'h00000230 || dut.PCE == 32'h00000244) begin
+            $display("=========================================================");
             $display(" ❌ TEST FAILED!");
-            $display(" 🚨 Firmware diverted to FAIL_TRAP.");
-            $display("========================================");
-            #10;
+            $display(" 🚨 Firmware diverted to FAIL_TRAP at PC: 0x%08h", dut.PCE);
+            $display(" 🚨 Error Code Register x4: 0x%08h", core_x4);
+            $display("=========================================================");
+            #20;
             $finish;
         end
     end

@@ -9,8 +9,12 @@ module Register_File # (
     input  wire        i_Clk,
     input  wire        rst_n,
     output wire [31:0] RD1D,
-    output wire [31:0] RD2D
+    output wire [31:0] RD2D,
+    output wire [31:0] o_debug_x4   //add this port
 );
+
+    assign o_debug_x4 = r_Registers[4];     //to direct read of x4
+
     localparam c_SP_Index = 2;
     localparam c_GP_Index = 3;
     localparam c_GP_Initial_Value = 32'h10010000;

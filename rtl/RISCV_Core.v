@@ -5,6 +5,12 @@ module RISCV_Core (
     input  wire        rst_n,            // Active-low asynchronous reset
 
     // ==========================================
+    // Existing Bus Ports
+    // ==========================================
+    output wire        o_mispredict_flag,// Debug: passes Mispredict_Flag
+    output wire [31:0] o_debug_x4,       // Debug: passes register x4
+
+    // ==========================================
     // Instruction Bus Interface (I-Bus)
     // ==========================================
     output wire [31:0] i_addr,           // Instruction fetch address (PCF)
@@ -135,12 +141,12 @@ module RISCV_Core (
     );
 
     RAS return_address_stack (
-        .i_clk(clk),
-        .rst_n(rst_n),
-        .Push_Enable(Push_EnableF),
-        .Push_Data(PCPlus4F),
-        .Pop_Enable(Pop_EnableF),
-        .Predicted_PC(Predicted_PCF)
+        .i_clk        (clk),
+        .rst_n        (rst_n),
+        .Push_Enable  (Push_EnableF & ~StallF), // Gated: push only on valid new fetch
+        .Push_Data    (PCPlus4F),
+        .Pop_Enable   (Pop_EnableF & ~StallF),  // Gated: pop only on valid new fetch
+        .Predicted_PC (Predicted_PCF)
     );
 
     Register_IF_ID if_id_reg (
@@ -204,7 +210,8 @@ module RISCV_Core (
         .i_Clk(clk),
         .rst_n(rst_n),
         .RD1D(RD1D),
-        .RD2D(RD2D)
+        .RD2D(RD2D),
+        .o_debug_x4(o_debug_x4)
     );
 
     extend imm_extend (
@@ -455,5 +462,7 @@ module RISCV_Core (
         .FlushD(FlushD),
         .FlushE(FlushE)
     );
+
+    assign o_mispredict_flag = Mispredict_Flag;
 
 endmodule

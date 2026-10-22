@@ -67,7 +67,7 @@ module Hazard_Unit (
         // ----------------------------------------------------
         // 2. Load-Use Hazard Detection (ID Stage)
         // ----------------------------------------------------
-        if ((ResultSrcE[0] == 1'b1) && ((RdE == Rs1D) || (RdE == Rs2D))) begin
+        if ((ResultSrcE[0] == 1'b1) && (RdE != 5'b00000) && ((RdE == Rs1D) || (RdE == Rs2D))) begin
             lwStall = 1'b1;
         end else begin
             lwStall = 1'b0;

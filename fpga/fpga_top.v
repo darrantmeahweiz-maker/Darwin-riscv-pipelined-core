@@ -3,7 +3,7 @@
 module fpga_top (
     input  wire        CLOCK_50,   // Dedicated Global Clock Pin (PIN_AF14)
     input  wire [3:0]  KEY,        // KEY[0] = Reset Button (PIN_AA14)
-    input  wire [9:0]  SW,
+    input  wire [9:0]  SW,         // Reserved for future control
 
     output wire [9:0]  LEDR,
     output wire [6:0]  HEX0,
@@ -37,7 +37,7 @@ module fpga_top (
     end
 
     // =========================================================================
-    // 3. Interconnect Bus Wires
+    // 3. Interconnect Bus Wires & Debug Telemetry
     // =========================================================================
     wire [31:0] i_addr;
     wire        i_req;
@@ -59,21 +59,27 @@ module fpga_top (
     wire [31:0] uart_rdata;
     wire        uart_ready;
 
+    // Telemetry debug wires from Core
+    wire        core_mispredict;
+    wire [31:0] core_x4;
+
     // =========================================================================
     // 4. Core & Memory Subsystem Instantiation
     // =========================================================================
     RISCV_Core u_core (
-        .clk     (core_clk),
-        .rst_n   (rst_n),
-        .i_addr  (i_addr),
-        .i_req   (i_req),
-        .i_rdata (i_rdata),
-        .d_addr  (d_addr),
-        .d_wdata (d_wdata),
-        .d_we    (d_we),
-        .d_req   (d_req),
-        .d_rdata (d_rdata),
-        .d_ready (d_ready)
+        .clk               (core_clk),
+        .rst_n             (rst_n),
+        .i_addr            (i_addr),
+        .i_req             (i_req),
+        .i_rdata           (i_rdata),
+        .d_addr            (d_addr),
+        .d_wdata           (d_wdata),
+        .d_we              (d_we),
+        .d_req             (d_req),
+        .d_rdata           (d_rdata),
+        .d_ready           (d_ready),
+        .o_mispredict_flag (core_mispredict), // Explicit synthesizable port
+        .o_debug_x4        (core_x4)          // Explicit synthesizable port
     );
 
     IMEM u_imem (
@@ -132,12 +138,12 @@ module fpga_top (
     always @(posedge core_clk or negedge rst_n) begin
         if (!rst_n) begin
             mispredict_latched <= 1'b0;
-        end else if (u_core.Mispredict_Flag) begin
+        end else if (core_mispredict) begin
             mispredict_latched <= 1'b1;
         end
     end
 
-    wire test_passed = (i_addr == 32'h00000264);
+    wire test_passed = (i_addr == 32'h000002C4);
 
     assign LEDR[0]   = rst_n;
     assign LEDR[1]   = ~uart_ready;
@@ -145,13 +151,15 @@ module fpga_top (
     assign LEDR[8:3] = 6'b000000;
     assign LEDR[9]   = test_passed;
 
+    // Display lower 16 bits of PC on HEX0 - HEX3
     hex_digit_decoder seg0 (.nibble(i_addr[3:0]),   .hex(HEX0));
     hex_digit_decoder seg1 (.nibble(i_addr[7:4]),   .hex(HEX1));
     hex_digit_decoder seg2 (.nibble(i_addr[11:8]),  .hex(HEX2));
     hex_digit_decoder seg3 (.nibble(i_addr[15:12]), .hex(HEX3));
 
-    hex_digit_decoder seg4 (.nibble(u_core.reg_file.r_Registers[4][3:0]), .hex(HEX4));
-    hex_digit_decoder seg5 (.nibble(u_core.reg_file.r_Registers[4][7:4]), .hex(HEX5));
+    // Display lowest byte of status register x4 on HEX4 - HEX5
+    hex_digit_decoder seg4 (.nibble(core_x4[3:0]),  .hex(HEX4));
+    hex_digit_decoder seg5 (.nibble(core_x4[7:4]),  .hex(HEX5));
 
 endmodule
 

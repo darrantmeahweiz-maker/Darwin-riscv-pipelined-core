@@ -45,21 +45,21 @@ module Control_Unit (
                 ALUSrcBD    = (op == 7'b0010011);
                 ImmSrcD     = 3'b000;
 
-                if (op == 7'b0010011) begin
-                    case ({funct3, rs2D})
-                        8'b001_00000: begin
+               if (op == 7'b0010011) begin
+                    case ({funct7, funct3, rs2D})
+                        {7'b0110000, 3'b001, 5'b00000}: begin // clz
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b000;
                         end
-                        8'b001_00010: begin
+                        {7'b0110000, 3'b001, 5'b00010}: begin // cpop
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b001;
                         end
-                        8'b101_11000: begin
+                        {7'b0110100, 3'b101, 5'b11000}: begin // rev8
                             ExecSelD    = 2'b11;
                             BITControlD = 3'b010;
                         end
-                        default: ;
+                        default: ; // Preserves standard slli, srli, srai
                     endcase
                 end else begin
                     case (funct7)

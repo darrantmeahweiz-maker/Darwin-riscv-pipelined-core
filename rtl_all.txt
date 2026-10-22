@@ -84,6 +84,9 @@ endmodule
 `timescale 1ns / 1ps
 
 module address_decoder (
+    input  wire        clk,
+    input  wire        rst_n,
+
     // ==========================================
     // Master Interface (From RISCV_Core D-Bus)
     // ==========================================
@@ -113,8 +116,6 @@ module address_decoder (
     // ==========================================
     // Memory Map Decoding
     // ==========================================
-    // 0x1001_0000 - 0x1001_0FFF : 4KB DMEM
-    // 0x3000_0000 - 0x3000_0004 : UART Controller
     wire sel_dmem = d_req && (d_addr >= 32'h10010000 && d_addr <= 32'h10010FFF);
     wire sel_uart = d_req && (d_addr >= 32'h30000000 && d_addr <= 32'h30000004);
 
@@ -128,6 +129,21 @@ module address_decoder (
     assign uart_re = sel_uart && (d_we == 4'b0000);
 
     // ==========================================
+    // 1-Cycle Synchronous BRAM Read Handshake
+    // ==========================================
+    reg dmem_read_ready;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dmem_read_ready <= 1'b0;
+        end else if (dmem_oe && !dmem_read_ready) begin
+            dmem_read_ready <= 1'b1; // Data latched into BRAM output register
+        end else begin
+            dmem_read_ready <= 1'b0; // Ready for next access
+        end
+    end
+
+    // ==========================================
     // Master Response Multiplexing
     // ==========================================
     always @(*) begin
@@ -136,10 +152,11 @@ module address_decoder (
             d_ready = uart_ready;
         end else if (sel_dmem) begin
             d_rdata = dmem_rdata;
-            d_ready = 1'b1;         // Combinational/distributed RAM is always ready
+            // Writes finish in 1 cycle; Reads wait 1 cycle for synchronous BRAM output
+            d_ready = dmem_oe ? dmem_read_ready : 1'b1;
         end else begin
             d_rdata = 32'h00000000;
-            d_ready = 1'b1;         // Prevent lockup on unmapped addresses
+            d_ready = 1'b1;
         end
     end
 
@@ -282,13 +299,11 @@ endmodule
 // ========================================
 
 module Control_Unit (
-    // Inputs from instruction (Decode stage)
     input       [6:0]   op,
     input       [2:0]   funct3,
     input       [6:0]   funct7,  
     input       [4:0]   rs2D, 
 
-    // Output to pipelined register
     output reg          RegWriteD,
     output reg  [1:0]   ResultSrcD,
     output reg          MemWriteD,
@@ -305,180 +320,143 @@ module Control_Unit (
     output reg  [2:0]   ImmSrcD     
 );
 
-    // Combinational logic
     always @(*) begin
-        // Set default values 
+        // Complete default assignments (Prevents inferred latches in Synopsys DC)
         RegWriteD    = 1'b0;
         ResultSrcD   = 2'b00;
         MemWriteD    = 1'b0;
-        JumpD        = 2'b00;    // Default: No jump
+        JumpD        = 2'b00;
         BranchD      = 1'b0;
 
-        ExecSelD     = 2'b00;    // Default: Select standard ALU
-        MultControlD = 2'b00;    // Default: Off MULT
-        CRCControlD  = 2'b00;    // Default: Off CRC
+        ExecSelD     = 2'b00;
+        BITControlD  = 3'b000;   // <--- Fixed: prevents 3-bit latch inference
+        MultControlD = 2'b00;
+        CRCControlD  = 2'b00;
 
         ALUControlD  = 4'b0000;
         ALUSrcBD     = 1'b0;
         ALUSrcAD     = 2'b00; 
         ImmSrcD      = 3'b000;
 
-        // Decode the Opcode
         case (op)
-            // ----------------------------------------------------
-            // R-type & I-type (ALU, MULT, CRC, BITMANIP operations)
-            // ----------------------------------------------------
             7'b0110011, 7'b0010011: begin   
                 RegWriteD   = 1'b1;
-                ResultSrcD  = 2'b00;                // ALUResult
-                ALUSrcBD    = (op==7'b0010011); // I-type is one while R-type is zero
+                ResultSrcD  = 2'b00;
+                ALUSrcBD    = (op == 7'b0010011);
                 ImmSrcD     = 3'b000;
 
-
-                //Check for execution unit (ExecSelD & custom Control)
                 if (op == 7'b0010011) begin
-                    //I-type custom extensions
-                    case ({funct3,rs2D})
-                        8'b001_00000: begin     //clz
-                            ExecSelD   = 2'b11;
+                    case ({funct3, rs2D})
+                        8'b001_00000: begin
+                            ExecSelD    = 2'b11;
                             BITControlD = 3'b000;
                         end
-                        8'b001_00010: begin     //cpop
-                            ExecSelD   = 2'b11;
+                        8'b001_00010: begin
+                            ExecSelD    = 2'b11;
                             BITControlD = 3'b001;
                         end
-                        8'b101_11000: begin     //rev8
-                            ExecSelD   = 2'b11;
+                        8'b101_11000: begin
+                            ExecSelD    = 2'b11;
                             BITControlD = 3'b010;
                         end
                         default: ;
                     endcase
                 end else begin
-                    //R-type custom extensions
                     case (funct7)
                         7'b0110000: begin
                             ExecSelD     = 2'b11;
-                            BITControlD  = (funct3 == 3'b001)? 3'b011: 3'b100;   // 011=rol 100=ror
+                            BITControlD  = (funct3 == 3'b001) ? 3'b011 : 3'b100;
                         end
                         7'b0000001: begin
                             ExecSelD     = 2'b01;
-                            MultControlD = funct3[1:0];     // 00=mul, 01=mulh, 10=mulhsu, 11=mulhu
+                            MultControlD = funct3[1:0];
                         end
                         7'b1000000: begin
                             ExecSelD     = 2'b10;
-                            CRCControlD = funct3[1:0];     // 00=crcb, 01=crch, 10=crcw
+                            CRCControlD  = funct3[1:0];
                         end
                         default: ;
                     endcase
                 end
 
-                //Standard ALU Control
                 case (funct3)
-                    3'b000: begin                                                           // 4'h1 = add & addi
-                        ALUControlD = (funct7[5] == 1'b1 && op == 7'b0110011)? 4'h2: 4'h1;  // 4'h2 = sub (note: i-type doesn't have sub)                        
-                    end
-                    3'b001: ALUControlD = 4'h6; // sll & slli
-                    3'b010: ALUControlD = 4'h9; // slt & slti
-                    3'b011: ALUControlD = 4'hA; // sltu & sltiu
-                    3'b100: ALUControlD = 4'h5; // xor & xori
-                    3'b101: begin                                                   // srl & srli
-                        ALUControlD = (funct7[5] == 1'b1) ? 4'h8 : 4'h7;    // sra & srai  
-                    end
-                    3'b110: ALUControlD = 4'h4; // or & ori
-                    3'b111: ALUControlD = 4'h3; // and & andi
+                    3'b000: ALUControlD = (funct7[5] == 1'b1 && op == 7'b0110011) ? 4'h2 : 4'h1;
+                    3'b001: ALUControlD = 4'h6;
+                    3'b010: ALUControlD = 4'h9;
+                    3'b011: ALUControlD = 4'hA;
+                    3'b100: ALUControlD = 4'h5;
+                    3'b101: ALUControlD = (funct7[5] == 1'b1) ? 4'h8 : 4'h7;
+                    3'b110: ALUControlD = 4'h4;
+                    3'b111: ALUControlD = 4'h3;
                     default: ALUControlD = 4'h0;
                 endcase
             end
 
-            // ----------------------------------------------------
-            // I-type (Load)
-            // ----------------------------------------------------
             7'b0000011: begin               
                 RegWriteD   = 1'b1;
-                ResultSrcD  = 2'b01;    // ReadData from Memory
-                ALUSrcBD    = 1'b1;     // immediate for offset
+                ResultSrcD  = 2'b01;
+                ALUSrcBD    = 1'b1;
                 ImmSrcD     = 3'b000;
-                ALUControlD = 4'h1;     // Add (base + offset)
+                ALUControlD = 4'h1;
             end
 
-            // ----------------------------------------------------
-            // S-type (Store)
-            // ----------------------------------------------------
             7'b0100011: begin               
                 MemWriteD   = 1'b1;
                 ALUSrcBD    = 1'b1;
                 ImmSrcD     = 3'b001;
-                ALUControlD = 4'h1;     // Add  
+                ALUControlD = 4'h1;
             end
 
-            // ----------------------------------------------------
-            // B-type (Branch)
-            // ----------------------------------------------------
             7'b1100011: begin               
-                ALUSrcBD    = 1'b0;     // compare rs1 and rs2
+                ALUSrcBD    = 1'b0;
                 ImmSrcD     = 3'b010;   
                 BranchD     = 1'b1;
                 case(funct3)
-                    3'b000: ALUControlD = 4'h2; // BEQ
-                    3'b001: ALUControlD = 4'hB; // BNE
-                    3'b100: ALUControlD = 4'hC; // BLT
-                    3'b101: ALUControlD = 4'hD; // BGE
-                    3'b110: ALUControlD = 4'hE; // BLTU
-                    3'b111: ALUControlD = 4'hF; // BGEU
+                    3'b000: ALUControlD = 4'h2;
+                    3'b001: ALUControlD = 4'hB;
+                    3'b100: ALUControlD = 4'hC;
+                    3'b101: ALUControlD = 4'hD;
+                    3'b110: ALUControlD = 4'hE;
+                    3'b111: ALUControlD = 4'hF;
                     default: ALUControlD = 4'h0;
                 endcase
             end
 
-            // ----------------------------------------------------
-            // J-type (JAL)
-            // ----------------------------------------------------
             7'b1101111: begin               
-                RegWriteD   = 1'b1;         // must be written back to rd
+                RegWriteD   = 1'b1;
                 JumpD       = 2'b01;
-                ResultSrcD  = 2'b10;        // save PC+4 to rd
-                ImmSrcD     = 3'b011;       // J-type immediate formatting
+                ResultSrcD  = 2'b10;
+                ImmSrcD     = 3'b011;
             end
 
-            // ----------------------------------------------------
-            // I-type (JALR)
-            // ----------------------------------------------------
             7'b1100111: begin               
                 RegWriteD   = 1'b1;
-                JumpD       = 2'b10;        // it is jump
-                ResultSrcD  = 2'b10;        // save PC+4 to rd
-                ALUSrcBD    = 1'b1;         // add immediate to Rs1
-                ImmSrcD     = 3'b000;       // I-type immediate formatting
-                ALUControlD = 4'h1;         // add for jump target
+                JumpD       = 2'b10;
+                ResultSrcD  = 2'b10;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b000;
+                ALUControlD = 4'h1;
             end
 
-            // ----------------------------------------------------
-            // U-type (LUI - Load Upper Immediate)
-            // ----------------------------------------------------
             7'b0110111: begin   
                 RegWriteD   = 1'b1;
-                ResultSrcD  = 2'b00;        // ALUResult
+                ResultSrcD  = 2'b00;
                 ALUSrcAD    = 2'b10;  
-                ALUSrcBD    = 1'b1;         // Pass the immediate into ALU
-                ImmSrcD     = 3'b100;       // U-type immediate formatting
-                ALUControlD = 4'h0;         // PASS (ALUResult = SrcB)
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b100;
+                ALUControlD = 4'h0;
             end
 
-            // ----------------------------------------------------
-            // U-type (AUIPC - Add Upper Immediate to PC)
-            // ----------------------------------------------------
             7'b0010111: begin 
                 RegWriteD   = 1'b1;
-                ResultSrcD  = 2'b00;        // Normal ALU Result
-                ALUSrcAD    = 2'b01;        // Tell ALU to read PC instead of Rs1
-                ALUSrcBD    = 1'b1;         // Tell ALU to read Immediate instead of Rs2
-                ImmSrcD     = 3'b100;       // U-type immediate formatting
-                ALUControlD = 4'h1;         // ADD (PC + Immediate)
+                ResultSrcD  = 2'b00;
+                ALUSrcAD    = 2'b01;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b100;
+                ALUControlD = 4'h1;
             end
 
-            // ---------------------------------------------------- 
-            // System (ECALL/EBREAK) & Fence
-            // ----------------------------------------------------
-            7'b1110011, 7'b0001111: begin              
+            7'b1110011, 7'b0001111: begin               
             end
 
             default: begin
@@ -486,121 +464,47 @@ module Control_Unit (
         endcase
     end
 endmodule
-
-
-/* Previous version for R-type & I-type (ALU, MULT, CRC, BITMANIP operations)
-                //Check for BITMANIP Extension (Zbb)
-                if(op == 7'b0010011) begin
-                    if  (funct3 == 3'b001 && rs2D == 5'b00000) begin //clz
-                        ExecSelD   = 2'b11;
-                        BITControlD = 3'b000;
-                    end
-                    if  (funct3 == 3'b001 && rs2D == 5'b00010) begin //cpop
-                        ExecSelD   = 2'b11;
-                        BITControlD = 3'b001;
-                    end
-                    if  (funct3 == 3'b101 && rs2D == 5'b11000) begin //rev8
-                        ExecSelD   = 2'b11;
-                        BITControlD = 3'b010;
-                    end
-                end
-                if(op == 7'b0110011 && funct7 == 7'b0110000) begin
-                    if(funct3 == 3'b001) begin                       //rol
-                        ExecSelD   = 2'b11;
-                        BITControlD = 3'b011;
-                    end
-                    if(funct3 == 3'b101) begin                       //ror
-                        ExecSelD   = 2'b11;
-                        BITControlD = 3'b100;
-                    end
-                end
-
-
-                // Check for MULT Extension (Zmmul)
-                if (op == 7'b0110011 && funct7 == 7'b0000001) begin
-                    ExecSelD     = 2'b01;
-                    MultControlD = funct3[1:0];   // 00=mul, 01=mulh, 10=mulhsu, 11=mulhu
-                
-                // Check for CRC Extension (Xicrc)
-                end else if (op == 7'b0110011 && funct7 == 7'b1000000) begin
-                    ExecSelD     = 2'b10;
-                    CRCControlD  = funct3[1:0];    // 00=crcb, 01=crch, 10=crcw
-
-                end else begin
-                    // Standard ALU Operations via funct3
-                    case (funct3)
-                        3'b000: begin
-                            if (funct7[5] == 1'b1 && op == 7'b0110011) begin
-                                ALUControlD = 4'h2; // sub (note: i-type doesn't have sub)
-                            end else begin
-                                ALUControlD = 4'h1; // add & addi
-                            end
-                        end
-                        3'b001: ALUControlD = 4'h6; // sll & slli
-                        3'b010: ALUControlD = 4'h9; // slt & slti
-                        3'b011: ALUControlD = 4'hA; // sltu & sltiu
-                        3'b100: ALUControlD = 4'h5; // xor & xori
-                        3'b101: begin
-                            if (funct7[5] == 1'b1) begin
-                                ALUControlD = 4'h8; // sra & srai
-                            end else begin
-                                ALUControlD = 4'h7; // srl & srli
-                            end
-                        end
-                        3'b110: ALUControlD = 4'h4; // or & ori
-                        3'b111: ALUControlD = 4'h3; // and & andi
-                        default: ALUControlD = 4'h0;
-                    endcase
-                end
-            end
-*/
 // ========================================
 // File: rtl/DMEM.v
 // ========================================
 
 module DMEM (
     input  wire        i_Clk,
-    input  wire        WE, // MemWriteM --> address_decoder  --> DMEM
-    input  wire        OE, // Output enable
-    input  wire [3:0]  BW, // Byte-enables funct3D --> EX/MEM --> funct3E --> MEM/WB --> funct3M --> LSU --> DMEM
+    input  wire        WE,
+    input  wire        OE,
+    input  wire [3:0]  BW,
     input  wire [31:0] A,
     input  wire [31:0] WD,
     output reg  [31:0] RD
 );
 
-    reg [31:0] RAM [0:1023]; // 4KB (1024 words x 32 bits)
+    // Hint to Quartus to map directly to M10K Block RAM
+    (* ramstyle = "M10K" *) reg [31:0] RAM [0:1023]; // 4KB (1024 words x 32 bits)
 
     integer i;
     initial begin
         for (i = 0; i < 1024; i = i + 1) begin
             RAM[i] = 32'h00000000;
         end
+        RD = 32'h00000000;
     end
 
-    // 2**10 = 1024 --> [9:0]
-    // Map 0x1001_0000 --> index 0, and divide by 4 for word alignment
-    wire [9:0] word_index = (A - 32'h10010000) >> 2;
+    // Zero-gate wire slice (replaces 32-bit subtractor)
+    wire [9:0] word_index = A[11:2];
 
-    // Sequential Write Logic (Byte-Enable Masking)
+    // Synchronous Write (Byte-Enabled) & Synchronous Read for True BRAM Inference
     always @(posedge i_Clk) begin
         if (WE) begin
-            RAM[word_index] <= {
-                BW[3] ? WD[31:24] : RAM[word_index][31:24],
-                BW[2] ? WD[23:16] : RAM[word_index][23:16],
-                BW[1] ? WD[15:8]  : RAM[word_index][15:8],
-                BW[0] ? WD[7:0]   : RAM[word_index][7:0]
-            };
+            if (BW[0]) RAM[word_index][7:0]   <= WD[7:0];
+            if (BW[1]) RAM[word_index][15:8]  <= WD[15:8];
+            if (BW[2]) RAM[word_index][23:16] <= WD[23:16];
+            if (BW[3]) RAM[word_index][31:24] <= WD[31:24];
+        end
+        if (OE) begin
+            RD <= RAM[word_index];
         end
     end
 
-    // Combinational Read Logic
-    always @(*) begin
-        if (OE) begin
-            RD = RAM[word_index];
-        end else begin
-            RD = 32'h00000000;
-        end
-    end
 endmodule
 // ========================================
 // File: rtl/Extend.v
@@ -1175,6 +1079,12 @@ module RISCV_Core (
     input  wire        rst_n,            // Active-low asynchronous reset
 
     // ==========================================
+    // Existing Bus Ports
+    // ==========================================
+    output wire        o_mispredict_flag,// Debug: passes Mispredict_Flag
+    output wire [31:0] o_debug_x4,       // Debug: passes register x4
+
+    // ==========================================
     // Instruction Bus Interface (I-Bus)
     // ==========================================
     output wire [31:0] i_addr,           // Instruction fetch address (PCF)
@@ -1374,7 +1284,8 @@ module RISCV_Core (
         .i_Clk(clk),
         .rst_n(rst_n),
         .RD1D(RD1D),
-        .RD2D(RD2D)
+        .RD2D(RD2D),
+        .o_debug_x4(o_debug_x4)
     );
 
     extend imm_extend (
@@ -1569,6 +1480,7 @@ module RISCV_Core (
     Register_MEM_WB mem_wb_reg (
         .i_Clk(clk),
         .rst_n(rst_n),
+        .StallW(StallM),
         .RegWriteM(RegWriteM),
         .ResultSrcM(ResultSrcM),
         .ALUResultM(ALUResultM),
@@ -1624,6 +1536,8 @@ module RISCV_Core (
         .FlushD(FlushD),
         .FlushE(FlushE)
     );
+
+    assign o_mispredict_flag = Mispredict_Flag;
 
 endmodule
 // ========================================
@@ -1689,15 +1603,15 @@ endmodule
 module Register_File # (
     parameter p_DATA_DMEM_SIZE = 2**12
 )(
-    input wire  [4:0]  A1,
-    input wire  [4:0]  A2,
-    input wire  [4:0]  A3,
-    input wire  [31:0] ResultW,
-    input wire         RegWriteW,
-    input wire         i_Clk,
-    input wire         rst_n,
-    output      [31:0] RD1D,
-    output      [31:0] RD2D
+    input  wire [4:0]  A1,
+    input  wire [4:0]  A2,
+    input  wire [4:0]  A3,
+    input  wire [31:0] ResultW,
+    input  wire        RegWriteW,
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    output wire [31:0] RD1D,
+    output wire [31:0] RD2D
 );
     localparam c_SP_Index = 2;
     localparam c_GP_Index = 3;
@@ -1707,7 +1621,8 @@ module Register_File # (
     reg [31:0] r_Registers [0:31];
     integer i;
 
-    always @(negedge i_Clk or negedge rst_n) begin
+    // Unified Positive-Edge Triggered Write (Eliminates Half-Cycle STA Path)
+    always @(posedge i_Clk or negedge rst_n) begin
         if (!rst_n) begin
             for (i = 0; i < 32; i = i + 1) begin
                 case (i)
@@ -1717,14 +1632,19 @@ module Register_File # (
                 endcase
             end
         end else begin
-            if (RegWriteW && A3 != 5'h0) begin
+            if (RegWriteW && (A3 != 5'h0)) begin
                 r_Registers[A3] <= ResultW;
             end
         end
     end
 
-    assign RD1D = (A1 == 5'h0) ? 32'h0 : r_Registers[A1];
-    assign RD2D = (A2 == 5'h0) ? 32'h0 : r_Registers[A2];
+    // Asynchronous Read with Internal WB-to-ID Write-Through Bypass
+    assign RD1D = (A1 == 5'h0)              ? 32'h0   :
+                  (RegWriteW && (A3 == A1)) ? ResultW : r_Registers[A1];
+
+    assign RD2D = (A2 == 5'h0)              ? 32'h0   :
+                  (RegWriteW && (A3 == A2)) ? ResultW : r_Registers[A2];
+
 endmodule
 // ========================================
 // File: rtl/Register_ID_EX.v
@@ -1922,21 +1842,22 @@ endmodule
 // ========================================
 
 module Register_MEM_WB(
-    input             i_Clk,
-    input             rst_n,
-    input             RegWriteM,
-    input      [1:0]  ResultSrcM,
-    input      [31:0] ALUResultM,
-    input      [31:0] Formatted_RD,
-    input      [4:0]  RdM,
-    input      [31:0] PCPlus4M,
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    input  wire        StallW,       // Freezes WB stage during D-Bus wait-states
+    input  wire        RegWriteM,
+    input  wire [1:0]  ResultSrcM,
+    input  wire [31:0] ALUResultM,
+    input  wire [31:0] Formatted_RD,
+    input  wire [4:0]  RdM,
+    input  wire [31:0] PCPlus4M,
 
-    output reg        RegWriteW,
-    output reg [1:0]  ResultSrcW,
-    output reg [31:0] ALUResultW,
-    output reg [31:0] ReadDataW,
-    output reg [4:0]  RdW,
-    output reg [31:0] PCPlus4W
+    output reg         RegWriteW,
+    output reg  [1:0]  ResultSrcW,
+    output reg  [31:0] ALUResultW,
+    output reg  [31:0] ReadDataW,
+    output reg  [4:0]  RdW,
+    output reg  [31:0] PCPlus4W
 );
     always @(posedge i_Clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -1946,7 +1867,7 @@ module Register_MEM_WB(
             ReadDataW  <= 32'h0;
             RdW        <= 5'b0;
             PCPlus4W   <= 32'h0;
-        end else begin
+        end else if (!StallW) begin
             RegWriteW  <= RegWriteM;
             ResultSrcW <= ResultSrcM;
             ALUResultW <= ALUResultM;
