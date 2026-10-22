@@ -18,7 +18,8 @@ module RISCV_Core (
     output wire [31:0] d_wdata,          // Memory write data (WriteDataM)
     output wire [3:0]  d_we,             // Byte-write enables (sb=0001, sh=0011, sw=1111)
     output wire        d_req,            // Memory read/write request
-    input  wire [31:0] d_rdata           // Incoming raw load data
+    input  wire [31:0] d_rdata,          // Incoming raw load data
+    input  wire        d_ready           // 1 when memory/peripheral is ready, 0 when waiting
 );
 
     // =========================================================================
@@ -26,7 +27,7 @@ module RISCV_Core (
     // =========================================================================
 
     // --- Hazard Unit ---
-    wire        StallF, StallD, FlushD, FlushE;
+    wire        StallF, StallD, StallE, StallM, FlushD, FlushE;
     wire [1:0]  ForwardAE, ForwardBE;
     wire        Mispredict_Flag;
 
@@ -89,11 +90,11 @@ module RISCV_Core (
     assign InstrF = i_rdata;
 
     // Data Bus Hookup
-    assign d_addr         = ALUResultM;
-    assign d_wdata        = WriteDataM;
-    assign d_we           = MemWriteM ? BW : 4'b0000;
-    assign d_req          = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
-    assign ReadDataM_raw  = d_rdata;
+    assign d_addr        = ALUResultM;
+    assign d_wdata       = WriteDataM;
+    assign d_we          = MemWriteM ? BW : 4'b0000;
+    assign d_req         = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
+    assign ReadDataM_raw = d_rdata;
 
     // =========================================================================
     // 3. FETCH STAGE (IF)
@@ -215,6 +216,7 @@ module RISCV_Core (
     Register_ID_EX id_ex_reg (
         .i_Clk(clk),
         .rst_n(rst_n),
+        .StallE(StallE),                 // Fixed case-sensitivity typo
         .FlushE(FlushE),
         .RegWriteD(RegWriteD),
         .ResultSrcD(ResultSrcD),
@@ -362,6 +364,7 @@ module RISCV_Core (
     Register_EX_MEM ex_mem_reg (
         .i_Clk(clk),
         .rst_n(rst_n),
+        .StallM(StallM),
         .RegWriteE(RegWriteE),
         .ResultSrcE(ResultSrcE),
         .MemWriteE(MemWriteE),
@@ -440,10 +443,14 @@ module RISCV_Core (
         .RdE(RdE),
         .ResultSrcE(ResultSrcE),
         .PCSrcE(PCSrcE),
+        .d_req(d_req),
+        .d_ready(d_ready),
         .ForwardAE(ForwardAE),
         .ForwardBE(ForwardBE),
         .StallF(StallF),
         .StallD(StallD),
+        .StallE(StallE),
+        .StallM(StallM),
         .FlushD(FlushD),
         .FlushE(FlushE)
     );

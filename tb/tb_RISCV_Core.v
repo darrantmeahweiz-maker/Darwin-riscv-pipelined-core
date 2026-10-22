@@ -3,27 +3,38 @@
 module tb_RISCV_Core();
 
     reg clk;
-    reg rst_n; // Updated: Active-low asynchronous reset
+    reg rst_n;
 
     // ==========================================
-    // Bus Interconnect Wires
+    // 1. Bus Interconnect Wires
     // ==========================================
+    // Instruction Bus (Core <-> IMEM)
     wire [31:0] i_addr;
     wire        i_req;
     wire [31:0] i_rdata;
 
+    // Data Bus Master (Core <-> Address Decoder)
     wire [31:0] d_addr;
     wire [31:0] d_wdata;
     wire [3:0]  d_we;
     wire        d_req;
     wire [31:0] d_rdata;
+    wire        d_ready;
 
-    // Memory control wires from address decoder
-    wire dmem_we;
-    wire dmem_oe;
+    // Slave 0: Data Memory (Address Decoder <-> DMEM)
+    wire        dmem_we;
+    wire        dmem_oe;
+    wire [31:0] dmem_rdata;
+
+    // Slave 1: UART Controller (Address Decoder <-> UART_TX)
+    wire        uart_we;
+    wire        uart_re;
+    wire [31:0] uart_rdata;
+    wire        uart_ready;
+    wire        uart_tx_pin;
 
     // ==========================================
-    // 1. Pure Core Instantiation (DUT)
+    // 2. Pure Core Instantiation (DUT)
     // ==========================================
     RISCV_Core dut (
         .clk     (clk),
@@ -35,11 +46,12 @@ module tb_RISCV_Core();
         .d_wdata (d_wdata),
         .d_we    (d_we),
         .d_req   (d_req),
-        .d_rdata (d_rdata)
+        .d_rdata (d_rdata),
+        .d_ready (d_ready)
     );
 
     // ==========================================
-    // 2. Standalone Memory Subsystem (External to Core)
+    // 3. Instruction Memory (ROM)
     // ==========================================
     IMEM instruction_memory (
         .A  (i_addr),
@@ -47,13 +59,33 @@ module tb_RISCV_Core();
         .OE (i_req)
     );
 
+    // ==========================================
+    // 4. Address Decoder & Bus Interconnect
+    // ==========================================
     address_decoder addr_dec (
-        .ALUResultM (d_addr),
-        .MemWriteM  (|d_we),
-        .WE         (dmem_we),
-        .OE         (dmem_oe)
+        // Master Interface (From Core)
+        .d_addr     (d_addr),
+        .d_wdata    (d_wdata),
+        .d_we       (d_we),
+        .d_req      (d_req),
+        .d_rdata    (d_rdata),
+        .d_ready    (d_ready),
+
+        // Slave 0: DMEM Interface
+        .dmem_we    (dmem_we),
+        .dmem_oe    (dmem_oe),
+        .dmem_rdata (dmem_rdata),
+
+        // Slave 1: UART Interface
+        .uart_we    (uart_we),
+        .uart_re    (uart_re),
+        .uart_rdata (uart_rdata),
+        .uart_ready (uart_ready)
     );
 
+    // ==========================================
+    // 5. Data Memory (RAM)
+    // ==========================================
     DMEM data_memory (
         .i_Clk (clk),
         .WE    (dmem_we),
@@ -61,11 +93,29 @@ module tb_RISCV_Core();
         .BW    (d_we),
         .A     (d_addr),
         .WD    (d_wdata),
-        .RD    (d_rdata)
+        .RD    (dmem_rdata)
     );
 
     // ==========================================
-    // 3. Clock Generation (100MHz)
+    // 6. UART Transmitter Peripheral
+    // ==========================================
+    uart_tx #(
+        .CLK_FREQ  (100_000_000), // Match 100MHz testbench clock
+        .BAUD_RATE (10_000_000)
+    ) u_uart (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .d_addr     (d_addr),
+        .d_wdata    (d_wdata),
+        .uart_we    (uart_we),
+        .uart_re    (uart_re),
+        .uart_rdata (uart_rdata),
+        .uart_ready (uart_ready),
+        .tx_pin     (uart_tx_pin)
+    );
+
+    // ==========================================
+    // 7. Clock Generation (100MHz -> 10ns period)
     // ==========================================
     initial begin
         clk = 0;
@@ -73,22 +123,21 @@ module tb_RISCV_Core();
     end
 
     // ==========================================
-    // 4. Simulation Flow Control
+    // 8. Simulation Flow Control
     // ==========================================
     initial begin
         $dumpfile("build/core_waveform.vcd");
         $dumpvars(0, tb_RISCV_Core);
 
-        // Active-low reset: Assert at 0, de-assert to 1 after 20ns
+        // Active-low asynchronous reset
         rst_n = 1'b0;
         #20; 
         rst_n = 1'b1;
         
         $display("========================================");
-        $display(" 🚀 RISC-V EXHAUSTIVE SELF-CHECKING VERIFICATION");
+        $display(" 🚀 RISC-V SOC INTERCONNECT & UART VERIFICATION");
         $display("========================================");
 
-        // Extended simulation timeout
         #200000; 
         
         $display("========================================");
@@ -98,43 +147,52 @@ module tb_RISCV_Core();
     end
 
     // ==========================================
-    // 5. Execution Monitoring & Kill-Switches
+    // 9. UART Output Console Sniffer
+    // ==========================================
+    always @(posedge clk) begin
+        if (rst_n && uart_we && (d_addr == 32'h30000000) && uart_ready) begin
+            $display(" 📡 [UART BUS TX] Captured Character: '%c' (Hex: 0x%02h)", d_wdata[7:0], d_wdata[7:0]);
+        end
+    end
+
+    // ==========================================
+    // 10. Execution Monitoring & Kill-Switches
     // ==========================================
     reg [31:0] last_pc = 32'hFFFFFFFF; 
     reg [63:0] saved_mispredict_time = 0; 
     
     always @(posedge clk) begin
-        // Trace PC progression once out of reset
         if (rst_n && (dut.PCF !== last_pc)) begin
             $display("Time: %0t | PC: %h | Instruction: %h", $time, dut.PCF, dut.InstrF);
             last_pc <= dut.PCF;
         end
 
-        // Silently capture the time of the first misprediction
         if (dut.Mispredict_Flag == 1'b1 && saved_mispredict_time == 0) begin
             saved_mispredict_time <= $time;
         end
 
-        // SMART KILL-SWITCH: Monitor the Execute Stage (PCE) to ignore ghost fetches
-        // PC == 0x00000234 is the PASS_TRAP infinite loop
-        if (dut.PCE == 32'h00000234) begin
+        // PASS_TRAP (0x00000234)
+        // SMART KILL-SWITCH:
+        // PC == 0x00000250 is the new PASS_TRAP infinite loop after UART transmission
+        // In Section 10 of tb_RISCV_Core.v:
+    // PC == 0x00000264 is the true final PASS_TRAP loop
+        if (dut.PCE == 32'h00000264) begin
             $display("========================================");
             $display(" ✅ TEST PASSED!");
-            $display(" 🏁 All ISA, Hazards, and Speculation checks completed perfectly.");
+            $display(" 🏁 All ISA, Hazards, Interconnect, and UART tests completed.");
             $display("    Self-Check Status Register (x4) is 0x00000000.");
             if (saved_mispredict_time > 0) begin
                 $display(" 💡 [%0t] RAS Overflow/Mispredict Detected! Healing pipeline...", saved_mispredict_time);
             end
             $display("========================================");
-            #10; 
+            #1000; // Allow final character to flush
             $finish;
-        end 
-        // PC == 0x00000230 is the FAIL_TRAP infinite loop
+            end
+        // FAIL_TRAP (0x00000230)
         else if (dut.PCE == 32'h00000230) begin
             $display("========================================");
             $display(" ❌ TEST FAILED!");
             $display(" 🚨 Firmware diverted to FAIL_TRAP.");
-            $display("    A hardware evaluation produced the wrong result.");
             $display("========================================");
             #10;
             $finish;
