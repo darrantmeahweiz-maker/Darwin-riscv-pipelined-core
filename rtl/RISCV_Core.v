@@ -96,11 +96,14 @@ module RISCV_Core (
     assign InstrF = i_rdata;
 
     // Data Bus Hookup
-    assign d_addr        = ALUResultM;
-    assign d_wdata       = WriteDataM;
-    assign d_we          = MemWriteM ? BW : 4'b0000;
-    assign d_req         = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
-    assign ReadDataM_raw = d_rdata;
+    // Data Bus Hookup
+ assign d_addr        = ALUResultM;
+ assign d_wdata       = (funct3M[1:0] == 2'b00) ? {4{WriteDataM[7:0]}}  :
+                        (funct3M[1:0] == 2'b01) ? {2{WriteDataM[15:0]}} :
+                                                  WriteDataM;
+ assign d_we          = MemWriteM ? BW : 4'b0000;
+ assign d_req         = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
+ assign ReadDataM_raw = d_rdata;
 
     // =========================================================================
     // 3. FETCH STAGE (IF)
@@ -143,11 +146,11 @@ module RISCV_Core (
     RAS return_address_stack (
         .i_clk        (clk),
         .rst_n        (rst_n),
-        .Push_Enable  (Push_EnableF & ~StallF), // Gated: push only on valid new fetch
+        .Push_Enable  (Push_EnableF & ~StallF & ~FlushD), // Gated: only push valid non-flushed fetch
         .Push_Data    (PCPlus4F),
-        .Pop_Enable   (Pop_EnableF & ~StallF),  // Gated: pop only on valid new fetch
+        .Pop_Enable   (Pop_EnableF & ~StallF & ~FlushD),  // Gated: only pop valid non-flushed fetch
         .Predicted_PC (Predicted_PCF)
-    );
+ );
 
     Register_IF_ID if_id_reg (
         .i_Clk(clk),

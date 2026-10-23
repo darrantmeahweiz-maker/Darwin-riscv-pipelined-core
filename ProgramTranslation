@@ -1,0 +1,330 @@
+Section 1: Initialization & Environment Setup
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x000    00000213      addi  x4, x0, 0               # x4 = 0 (Initialize error status register to PASS)
+0x004    100101B7      lui   x3, 0x10010             # x3 = 0x10010000 (DMEM base pointer)
+0x008    05A00E13      addi  x28, x0, 90             # x28 = 90 (Canary constant)
+0x00C    01C1A823      sw    x28, 16(x3)             # DMEM[0x10010010] = 90
+
+
+
+Section 2: Immediate Arithmetic & Logic (I-Type Operations)
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x010    00700293      addi  x5, x0, 7               # x5 = 7
+0x014    00300313      addi  x6, x0, 3               # x6 = 3
+0x018    00200393      addi  x7, x0, 2               # x7 = 2
+0x01C    FFB28413      addi  x8, x5, -5              # x8 = 7 + (-5) = 2
+0x020    FFF42493      slti  x9, x8, -1              # x9 = (2 < -1) ? 1 : 0 = 0 (Signed compare)
+0x024    00543513      sltiu x10, x8, 5              # x10 = (2 < 5) ? 1 : 0 = 1 (Unsigned compare)
+0x028    05554593      xori  x11, x10, 85            # x11 = 1 ^ 0x55 = 0x54
+0x02C    0A55E613      ori   x12, x11, 165           # x12 = 0x54 | 0xA5 = 0xF5
+0x030    0F067693      andi  x13, x12, 240           # x13 = 0xF5 & 0xF0 = 0xF0
+0x034    00369713      slli  x14, x13, 3             # x14 = 0xF0 << 3 = 0x780 (1920)
+0x038    00275793      srli  x15, x14, 2             # x15 = 0x780 >> 2 = 0x1E0 (480)
+0x03C    40175813      srai  x16, x14, 1             # x16 = 0x780 >>> 1 = 0x3C0 (960)
+# --- Section 2 Self-Check ---
+0x040    30049A63      bne   x9, x0, 0x354           # FAIL if slti (x9) != 0
+0x044    01078E33      add   x28, x15, x16           # x28 = 480 + 960 = 1440 (0x5A0)
+0x048    5A000E93      addi  x29, x0, 1440           # Expected = 1440 (Verifies entire x8..x16 chain)
+0x04C    31DE1463      bne   x28, x29, 0x354         # FAIL if any I-type op in x8..x16 failed
+
+
+
+Section 3: Register-Register Operations (R-Type) & Pipeline Verification
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x050    006288B3      add   x17, x5, x6             # x17 = 7 + 3 = 10
+0x054    40788933      sub   x18, x17, x7            # x18 = 10 - 2 = 8
+0x058    007919B3      sll   x19, x18, x7            # x19 = 8 << 2 = 32
+0x05C    01192A33      slt   x20, x18, x17           # x20 = (8 < 10) ? 1 : 0 = 1
+0x060    0128BAB3      sltu  x21, x17, x18           # x21 = (10 < 8) ? 1 : 0 = 0
+0x064    015A4B33      xor   x22, x20, x21           # x22 = 1 ^ 0 = 1
+0x068    0079DBB3      srl   x23, x19, x7            # x23 = 32 >> 2 = 8 (Non-zero SRL test)
+0x06C    4149DC33      sra   x24, x19, x20           # x24 = 32 >>> 1 = 16 (Non-zero SRA test)
+0x070    018BECB3      or    x25, x23, x24           # x25 = 8 | 16 = 24 (Non-zero OR test)
+0x074    012CFD33      and   x26, x25, x18           # x26 = 24 & 8 = 8 (Non-zero AND test)
+# --- Section 3 Self-Check ---
+0x078    01AC8DB3      add   x27, x25, x26           # x27 = 24 + 8 = 32
+0x07C    016D8DB3      add   x27, x27, x22           # x27 = 32 + 1 = 33 (Chains all 10 R-type ops)
+0x080    02100E13      addi  x28, x0, 33             # Expected = 33
+0x084    2DCD9863      bne   x27, x28, 0x354         # FAIL if any R-type op in x17..x26 failed
+
+
+
+Section 4: Load and Store Unit (Sub-Word Alignment & Sign Extension)
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x088    80FF8637      lui   x12, 0x80FF8            # Upper pattern
+0x08C    F0160613      addi  x12, x12, -255          # x12 = 0x80FF7F01
+0x090    00C1A023      sw    x12, 0(x3)              # Store word to DMEM[0x10010000]
+0x094    000086B7      lui   x13, 0x8                # Halfword pattern
+0x098    00168693      addi  x13, x13, 1             # x13 = 0x00008001
+0x09C    00D19423      sh    x13, 8(x3)              # Store halfword to DMEM[0x10010008]
+0x0A0    08000713      addi  x14, x0, 128            # x14 = 0x00000080
+0x0A4    00E18523      sb    x14, 10(x3)             # Store byte to DMEM[0x1001000A] (Byte lane 2)
+# --- Section 4 Load & Self-Check ---
+0x0A8    0001A783      lw    x15, 0(x3)              # x15 = 0x80FF7F01
+0x0AC    2AC79463      bne   x15, x12, 0x354         # FAIL if sw/lw mismatch
+0x0B0    00819803      lh    x16, 8(x3)              # x16 = 0xFFFF8001 (Sign-extended halfword)
+0x0B4    00D84DB3      xor   x27, x16, x13           # x27 = 0xFFFF8001 ^ 0x00008001 = 0xFFFF0000
+0x0B8    FFFF0E37      lui   x28, 0xFFFF0            # Expected sign-extension mask = 0xFFFF0000
+0x0BC    29CD9C63      bne   x27, x28, 0x354         # FAIL if sh/lh sign-extension failed
+0x0C0    0081D883      lhu   x17, 8(x3)              # x17 = 0x00008001 (Zero-extended halfword)
+0x0C4    28D89863      bne   x17, x13, 0x354         # FAIL if lhu zero-extension failed
+0x0C8    00A18903      lb    x18, 10(x3)             # x18 = 0xFFFFFF80 (-128, Sign-extended byte)
+0x0CC    F8000E13      addi  x28, x0, -128           # Expected = -128 (0xFFFFFF80)
+0x0D0    29C91263      bne   x18, x28, 0x354         # FAIL if sb/lb sign-extension failed
+0x0D4    00A1C983      lbu   x19, 10(x3)             # x19 = 0x00000080 (Zero-extended byte)
+0x0D8    26E99E63      bne   x19, x14, 0x354         # FAIL if lbu zero-extension failed
+
+
+
+Section 5: Architectural NOP & Synchronization Primitives
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x0DC    0FF0000F      fence                         # Memory barrier (safe NOP decode)
+0x0E0    00000073      ecall                         # System call hook
+0x0E4    00100073      ebreak                        # Breakpoint hook
+
+
+
+Section 6: Custom Multiplier Co-Processor (Zmmul Extension)
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x0E8    80000A37      lui   x20, 0x80000            # x20 = 0x80000000 (-2^31 signed, +2^31 unsigned)
+0x0EC    00300A93      addi  x21, x0, 3              # x21 = 3
+0x0F0    035A0B33      mul   x22, x20, x21           # Lower 32-bit product = 0x80000000
+0x0F4    035A1BB3      mulh  x23, x20, x21           # Signed * Signed upper 32 bits = 0xFFFFFFFE (-2)
+0x0F8    035A2C33      mulhsu x24, x20, x21          # Signed * Unsigned upper 32 bits = 0xFFFFFFFE (-2)
+0x0FC    035A3CB3      mulhu x25, x20, x21           # Unsigned * Unsigned upper 32 bits = 0x00000001 (1)
+# --- Section 6 Self-Check ---
+0x100    254B1A63      bne   x22, x20, 0x354         # FAIL if mul != 0x80000000
+0x104    FFE00E13      addi  x28, x0, -2             # Expected = -2 (0xFFFFFFFE)
+0x108    25CB9663      bne   x23, x28, 0x354         # FAIL if mulh != -2
+0x10C    25CC1463      bne   x24, x28, 0x354         # FAIL if mulhsu != -2
+0x110    00100E13      addi  x28, x0, 1              # Expected = 1
+0x114    25CC9063      bne   x25, x28, 0x354         # FAIL if mulhu != 1
+
+
+
+Section 7: Hardware CRC Accelerator (Xicrc Custom Extension)
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x118    00100D13      addi  x26, x0, 1              # x26 = 1 (Impulse input data = 0x00000001)
+0x11C    800D0DB3      crc8  x27, x26, x0            # CRC8(1, 0)  -> Expects 0x00000007
+0x120    800D1E33      crc16 x28, x26, x0            # CRC16(1, 0) -> Expects 0x00008005
+0x124    800D2EB3      crc32 x29, x26, x0            # CRC32(1, 0) -> Expects 0x04C11DB7
+# --- Section 7 Self-Check ---
+0x128    00700D13      addi  x26, x0, 7              # Expected CRC-8 polynomial = 0x07
+0x12C    23AD9463      bne   x27, x26, 0x354         # FAIL if crc8 != 0x07
+0x130    00008D37      lui   x26, 0x8                # 0x00008000
+0x134    005D0D13      addi  x26, x26, 5             # Expected CRC-16 polynomial = 0x00008005
+0x138    21AE1E63      bne   x28, x26, 0x354         # FAIL if crc16 != 0x8005
+0x13C    04C12D37      lui   x26, 0x04C12            # 0x04C12000
+0x140    DB7D0D13      addi  x26, x26, -585          # Expected CRC-32 polynomial = 0x04C11DB7
+0x144    21AE9863      bne   x29, x26, 0x354         # FAIL if crc32 != 0x04C11DB7
+
+
+
+Section 8: Bit Manipulation Unit (Zbb Extension)
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x148    01234F37      lui   x30, 0x01234            # 0x01234000
+0x14C    567F0F13      addi  x30, x30, 0x567         # x30 = 0x01234567
+0x150    600F1F93      clz   x31, x30                # clz(0x01234567) = 7
+0x154    00700D13      addi  x26, x0, 7              # Expected = 7
+0x158    1FAF9E63      bne   x31, x26, 0x354         # FAIL if clz != 7
+0x15C    602F1E13      cpop  x28, x30                # cpop(0x01234567) = 12
+0x160    00C00D13      addi  x26, x0, 12             # Expected = 12
+0x164    1FAE1863      bne   x28, x26, 0x354         # FAIL if cpop != 12
+0x168    698F5E93      rev8  x29, x30                # rev8(0x01234567) = 0x67452301 (Fixed funct7!)
+0x16C    607E9DB3      rol   x27, x29, x7            # rol(0x67452301, 2) = 0x9D148C05
+0x170    0FFDFD13      andi  x26, x27, 255           # Extract low byte = 5 (Proves MSB wrapped to LSB)
+0x174    00500E13      addi  x28, x0, 5              # Expected low byte = 5
+0x178    1DCD1E63      bne   x26, x28, 0x354         # FAIL if rev8 or rol failed
+0x17C    607DDFB3      ror   x31, x27, x7            # ror(0x9D148C05, 2) = 0x67452301
+0x180    698FDF93      rev8  x31, x31                # rev8(0x67452301) = 0x01234567
+0x184    1DEF9863      bne   x31, x30, 0x354         # FAIL if ror/rev8 round-trip != 0x01234567
+
+
+
+Section 9: PC-Relative Addressing & Indirect Jump/Link
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x188    00000E13      addi  x28, x0, 0              # Clear x28 = 0 before subroutine jump
+0x18C    00000C17      auipc x24, 0                  # x24 = 0x18C
+0x190    010C0C13      addi  x24, x24, 16            # Target = 0x18C + 16 = 0x19C
+0x194    000C0367      jalr  x6, 0(x24)              # Jump to 0x19C, save return address (0x198) in x6
+0x198    00C0006F      j     0x1A4                   # Executed on jr x6 return: jump to check
+0x19C    0B100E13      addi  x28, x0, 177            # Subroutine body: set x28 = 177
+0x1A0    00030067      jr    x6                      # Return to 0x198
+0x1A4    0B100D13      addi  x26, x0, 177            # Expected = 177
+0x1A8    1BAE1663      bne   x28, x26, 0x354         # FAIL if auipc/jalr/jr did not execute subroutine
+0x1AC    01C1AC23      sw    x28, 24(x3)             # Save checkpoint to DMEM
+
+
+
+Section 10: Complete Branch Prediction & Loop Condition Suite
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+# --- Test 1: BEQ Loop ---
+0x1B0    03C00C13      addi  x24, x0, 60             # x24 = 60
+0x1B4    FFFC0C13      addi  x24, x24, -4            # Decrement by 4
+0x1B8    000C0463      beq   x24, x0, 0x1C0          # Exit when x24 == 0
+0x1BC    FF9FF06F      j     0x1B4                   # Repeat loop
+0x1C0    180C1A63      bne   x24, x0, 0x354          # FAIL if BEQ exited with x24 != 0
+
+# --- Test 2: BNE Loop ---
+0x1C4    03C00C13      addi  x24, x0, 60             # x24 = 60
+0x1C8    FFFC0C13      addi  x24, x24, -4            # Decrement by 4
+0x1CC    FE0C1EE3      bne   x24, x0, 0x1C8          # Loop while x24 != 0
+0x1D0    180C1263      bne   x24, x0, 0x354          # FAIL if BNE exited with x24 != 0
+
+# --- Test 3: BLT Loop ---
+0x1D4    00000C13      addi  x24, x0, 0              # x24 = 0
+0x1D8    03C00C93      addi  x25, x0, 60             # Limit = 60
+0x1DC    001C0C13      addi  x24, x24, 1             # Increment by 1
+0x1E0    FF9C4EE3      blt   x24, x25, 0x1DC         # Loop while (x24 < 60)
+0x1E4    179C1863      bne   x24, x25, 0x354         # FAIL if BLT exited with x24 != 60
+
+# --- Test 4: BGE Loop ---
+0x1E8    FFFC0C13      addi  x24, x24, -4            # Decrement by 4
+0x1EC    FE0C5EE3      bge   x24, x0, 0x1E8          # Loop while (x24 >= 0)
+0x1F0    FFC00E13      addi  x28, x0, -4             # Expected terminal value = -4
+0x1F4    17CC1063      bne   x24, x28, 0x354         # FAIL if BGE exited with x24 != -4
+
+# --- Test 5: BLTU Loop ---
+0x1F8    00000C13      addi  x24, x0, 0              # x24 = 0
+0x1FC    03C00C93      addi  x25, x0, 60             # Limit = 60
+0x200    001C0C13      addi  x24, x24, 1             # Increment by 1
+0x204    FF9C6EE3      bltu  x24, x25, 0x200         # Loop while unsigned (x24 < 60)
+0x208    159C1663      bne   x24, x25, 0x354         # FAIL if BLTU exited with x24 != 60
+
+# --- Test 6: BGEU Loop ---
+0x20C    00000C13      addi  x24, x0, 0              # x24 = 0
+0x210    03C00C93      addi  x25, x0, 60             # Limit = 60
+0x214    001C0C13      addi  x24, x24, 1             # Increment by 1
+0x218    FF8CFEE3      bgeu  x25, x24, 0x214         # Loop while unsigned (60 >= x24)
+0x21C    03D00E13      addi  x28, x0, 61             # Expected terminal value = 61
+0x220    13CC1A63      bne   x24, x28, 0x354         # FAIL if BGEU exited with x24 != 61
+0x224    0A800E13      addi  x28, x0, 168            # Branch suite completion marker
+0x228    01C1AC23      sw    x28, 24(x3)             # Store marker to DMEM
+
+
+
+Section 11: Return Address Stack (RAS) Deep Nesting Stress Test
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x22C    00000E93      addi  x29, x0, 0              # Clear leaf marker x29 = 0
+0x230    00000F13      addi  x30, x0, 0              # Clear unwind marker x30 = 0
+0x234    014002EF      jal   x5, 0x248               # Call Level 0 helper (alt link reg x5)
+0x238    00028E93      addi  x29, x5, 0              # Save link
+0x23C    014000EF      jal   x1, 0x250               # Level 1 Call -> Pushes RAS[0]
+0x240    0D900F13      addi  x30, x0, 217            # Reached ONLY after all 9 levels unwind!
+0x244    0980006F      j     0x2DC                   # Jump to Section 11 Self-Check
+0x248    00028F93      addi  x31, x5, 0              # Level 0 subroutine
+0x24C    00028067      jr    x5                      # Return to 0x238
+# --- 9-Level Recursive Call Chain ---
+0x250    00008413      addi  x8, x1, 0               # Level 1: Save x1
+0x254    00C000EF      jal   x1, 0x260               # Level 2 Call -> Pushes RAS[1]
+0x258    00040093      addi  x1, x8, 0               # Restore x1
+0x25C    00008067      jr    x1                      # Level 1 Return (Triggers RAS Overflow Recovery!)
+0x260    00008493      addi  x9, x1, 0               # Level 2: Save x1
+0x264    00C000EF      jal   x1, 0x270               # Level 3 Call -> Pushes RAS[2]
+0x268    00048093      addi  x1, x9, 0               # Restore x1
+0x26C    00008067      jr    x1                      # Level 2 Return
+0x270    00008913      addi  x18, x1, 0              # Level 3: Save x1
+0x274    00C000EF      jal   x1, 0x280               # Level 4 Call -> Pushes RAS[3]
+0x278    00090093      addi  x1, x18, 0              # Restore x1
+0x27C    00008067      jr    x1                      # Level 3 Return
+0x280    00008993      addi  x19, x1, 0              # Level 4: Save x1
+0x284    00C000EF      jal   x1, 0x290               # Level 5 Call -> Pushes RAS[4]
+0x288    00098093      addi  x1, x19, 0              # Restore x1
+0x28C    00008067      jr    x1                      # Level 4 Return
+0x290    00008A13      addi  x20, x1, 0              # Level 5: Save x1
+0x294    00C000EF      jal   x1, 0x2A0               # Level 6 Call -> Pushes RAS[5]
+0x298    000A0093      addi  x1, x20, 0              # Restore x1
+0x29C    00008067      jr    x1                      # Level 5 Return
+0x2A0    00008A93      addi  x21, x1, 0              # Level 6: Save x1
+0x2A4    00C000EF      jal   x1, 0x2B0               # Level 7 Call -> Pushes RAS[6]
+0x2A8    000A8093      addi  x1, x21, 0              # Restore x1
+0x2AC    00008067      jr    x1                      # Level 6 Return
+0x2B0    00008B13      addi  x22, x1, 0              # Level 7: Save x1
+0x2B4    00C000EF      jal   x1, 0x2C0               # Level 8 Call -> Pushes RAS[7] (Full 8-entry stack)
+0x2B8    000B0093      addi  x1, x22, 0              # Restore x1
+0x2BC    00008067      jr    x1                      # Level 7 Return
+0x2C0    00008B93      addi  x23, x1, 0              # Level 8: Save x1
+0x2C4    00C000EF      jal   x1, 0x2D0               # Level 9 Call -> Wraps RAS[0]
+0x2C8    000B8093      addi  x1, x23, 0              # Restore x1
+0x2CC    00008067      jr    x1                      # Level 8 Return
+0x2D0    05F00E93      addi  x29, x0, 95             # Level 9 Leaf: x29 = 95
+0x2D4    01D1AE23      sw    x29, 28(x3)             # Store leaf flag
+0x2D8    00008067      jr    x1                      # FIXED: Unwind all 9 levels back to 0x240!
+# --- Section 11 Self-Check ---
+0x2DC    05F00E13      addi  x28, x0, 95             # Expected leaf marker = 95
+0x2E0    07CE9A63      bne   x29, x28, 0x354         # FAIL if Level 9 leaf was not reached
+0x2E4    0D900E13      addi  x28, x0, 217            # Expected unwind marker = 217
+0x2E8    07CF1663      bne   x30, x28, 0x354         # FAIL if 9-level RAS unwind/recovery failed
+
+
+
+Section 12: Hardware Bug Regression Suite
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+# --- Bug 1 Audit: Shift Immediate Disambiguation ---
+0x2EC    00F00313      addi  x6, x0, 15              # x6 = 15
+0x2F0    00031393      slli  x7, x6, 0               # x7 = 15 << 0 = 15
+0x2F4    06639063      bne   x7, x6, 0x354           # FAIL if slli by 0 hijacked by clz
+0x2F8    00231393      slli  x7, x6, 2               # x7 = 15 << 2 = 60
+0x2FC    03C00413      addi  x8, x0, 60              # Expected = 60
+0x300    04839A63      bne   x7, x8, 0x354           # FAIL if slli by 2 hijacked by cpop
+0x304    05A00313      addi  x6, x0, 90              # x6 = 90
+0x308    01835393      srli  x7, x6, 24              # x7 = 90 >> 24 = 0
+0x30C    04039463      bne   x7, x0, 0x354           # FAIL if srli by 24 hijacked by rev8
+
+# --- Bug 2 Audit: Load to x0 Immunity ---
+0x310    0061A023      sw    x6, 0(x3)               # DMEM[0] = 90
+0x314    0001A003      lw    x0, 0(x3)               # Dummy load to x0
+0x318    02A00393      addi  x7, x0, 42              # x7 = 42
+0x31C    02A00413      addi  x8, x0, 42              # x8 = 42
+0x320    02839A63      bne   x7, x8, 0x354           # FAIL if load to x0 corrupted pipeline
+0x324    02001863      bne   x0, x0, 0x354           # FAIL if x0 != 0
+
+# --- Bug 4 Audit: RAS Push/Pop Gating During Memory Stalls ---
+0x328    00C000EF      jal   x1, 0x334               # Call test harness
+0x32C    01C0006F      j     0x348                   # Jump to Bug 4 verification check
+0x330    00008067      jr    x1                      # Return to 0x344
+0x334    00008493      addi  x9, x1, 0               # Save return address (0x32C)
+0x338    0001A283      lw    x5, 0(x3)               # Load 90 from DMEM (Triggers D-Bus wait state)
+0x33C    00128313      addi  x6, x5, 1               # x6 = 90 + 1 = 91 (Triggers load-use stall)
+0x340    FF1FF0EF      jal   x1, -16                 # Backward call to 0x330 under stall
+0x344    00048067      jr    x9                      # Return to 0x32C
+0x348    05B00E13      addi  x28, x0, 91             # Expected = 91
+0x34C    01C31463      bne   x6, x28, 0x354          # FAIL if lw/addi hazard stall produced wrong sum
+
+
+
+Section 13: Unified Failure Trap
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x350    00C0006F      j     0x35C                   # All tests passed! Jump over FAIL_TRAP to UART
+0x354    00100213      addi  x4, x0, 1               # FAIL_TRAP: Set error register x4 = 1
+0x358    0000006F      j     0x358                   # FAIL_LOOP: Infinite freeze loop at 0x00000358
+
+
+
+Section 14: SoC Peripheral Output (UART Transmission) & Pass Termination
+Address  Machine Code  Assembly Instruction          Description / Architectural Intent
+------------------------------------------------------------------------------------------------------
+0x35C    30000537      lui   x10, 0x30000            # x10 = 0x30000000 (UART TX register)
+0x360    04F00593      addi  x11, x0, 79             # 'O' (0x4F)
+0x364    00B52023      sw    x11, 0(x10)             # Transmit 'O'
+0x368    04B00593      addi  x11, x0, 75             # 'K' (0x4B)
+0x36C    00B52023      sw    x11, 0(x10)             # Transmit 'K'
+0x370    00A00593      addi  x11, x0, 10             # '\n' (0x0A)
+0x374    00B52023      sw    x11, 0(x10)             # Transmit '\n'
+0x378    0000006F      j     0x378                   # PASS_LOOP: Terminal pass loop at 0x00000378
+
+Finally, the program will executes sequentially through section 1-13 
+leaves x4 ==0, and transmit "OK\n" over UART and loops at 0x000002C4

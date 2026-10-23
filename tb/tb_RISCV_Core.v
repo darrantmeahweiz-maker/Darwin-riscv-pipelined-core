@@ -156,11 +156,15 @@ module tb_RISCV_Core();
     end
 
     // ==========================================
-    // 9. UART Output Console Sniffer
+    // 9. UART Output Console Sniffer (Live Stream)
     // ==========================================
     always @(posedge clk) begin
         if (rst_n && uart_we && (d_addr == 32'h30000000) && uart_ready) begin
-            $display(" 📡 [UART BUS TX] Captured Character: '%c' (Hex: 0x%02h)", d_wdata[7:0], d_wdata[7:0]);
+            if (d_wdata[7:0] == 8'h0A) begin
+                $display(" 📡 [UART BUS TX] Captured Character: '\\n' (Hex: 0x0a)");
+            end else begin
+                $display(" 📡 [UART BUS TX] Captured Character: '%c' (Hex: 0x%02h)", d_wdata[7:0], d_wdata[7:0]);
+            end
         end
     end
 
@@ -183,9 +187,9 @@ module tb_RISCV_Core();
         end
 
         // ---------------------------------------------------------------------
-        // PASS KILL-SWITCH: Final infinite loop at 0x000002C4
+        // PASS KILL-SWITCH: Final infinite loop at 0x00000378
         // ---------------------------------------------------------------------
-        if (dut.PCE == 32'h000002C4) begin
+        if (dut.PCE == 32'h00000378) begin
             $display("=========================================================");
             $display(" ✅ ALL TESTS PASSED!");
             $display(" 🏁 Core successfully passed all 14 test suites:");
@@ -200,14 +204,14 @@ module tb_RISCV_Core();
                 $display(" 💡 [%0t] RAS Recovery Event verified natively.", saved_mispredict_time);
             end
             $display("=========================================================");
-            #2000; // Allow remaining UART frame to finish
+            #2000; // Allow remaining UART frame to finish transmitting
             $finish;
         end
 
         // ---------------------------------------------------------------------
         // FAIL KILL-SWITCHES: Divergence to any fail trap
         // ---------------------------------------------------------------------
-        else if (dut.PCE == 32'h000002A4 || dut.PCE == 32'h00000230 || dut.PCE == 32'h00000244) begin
+        else if (dut.PCE == 32'h00000358) begin
             $display("=========================================================");
             $display(" ❌ TEST FAILED!");
             $display(" 🚨 Firmware diverted to FAIL_TRAP at PC: 0x%08h", dut.PCE);

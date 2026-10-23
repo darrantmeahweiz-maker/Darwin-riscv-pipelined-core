@@ -116,9 +116,9 @@ module address_decoder (
     // ==========================================
     // Memory Map Decoding
     // ==========================================
-    wire sel_dmem = d_req && (d_addr >= 32'h10010000 && d_addr <= 32'h10010FFF);
-    wire sel_uart = d_req && (d_addr >= 32'h30000000 && d_addr <= 32'h30000004);
-
+    wire sel_dmem = d_req && (d_addr[31:12] == 20'h10010);
+    wire sel_uart = d_req && (d_addr[31:4]  == 28'h3000000);
+    
     // ==========================================
     // Slave Request Routing
     // ==========================================
@@ -667,7 +667,7 @@ module IMEM (
     //Address Translation: PC, program counter counts by 4 (0x0, 0x4, 0x8...)
     //Shifting right by 2 (divide by 4) converts byte-address into word_index
     //Assuming IMEM starts at address 0x0000_0000.
-    wire [9:0] word_index = A >>2;
+    wire [9:0] word_index = A[11:2];
 
     //Combinational Read Logic
     always @(*) begin
@@ -810,27 +810,22 @@ endmodule
 // ========================================
 
 module MULT(
-    input wire [1:0]  MUL_Control,
-    input wire [31:0] SrcA,
-    input wire [31:0] SrcB, 
-    output reg [31:0] MUL_Result
+    input  wire [1:0]  MUL_Control,
+    input  wire [31:0] SrcA,
+    input  wire [31:0] SrcB, 
+    output reg  [31:0] MUL_Result
 );
 
-    wire [63:0] signed_A     = {{32{SrcA[31]}},SrcA};
-    wire [63:0] signed_B     = {{32{SrcB[31]}},SrcB};
-    wire [63:0] unsigned_A   = {32'h00000000,SrcA};
-    wire [63:0] unsigned_B   = {32'h00000000,SrcB};
-
-    wire [63:0] MULH_out = signed_A * signed_B;         //signed*signed
-    wire [63:0] MULHSU_out = signed_A * unsigned_B;     //signed*unsigned
-    wire [63:0] MULHU_out = unsigned_A * unsigned_B;    //unsigned*unsigned
+    wire signed [63:0] mul_ss = $signed(SrcA) * $signed(SrcB);
+    wire signed [63:0] mul_su = $signed(SrcA) * $signed({1'b0, SrcB});
+    wire        [63:0] mul_uu = SrcA * SrcB;
 
     always @(*) begin
         case (MUL_Control)
-            2'b00: MUL_Result = MULH_out[31:0];     //MUL
-            2'b01: MUL_Result = MULH_out[63:32];    //MULH
-            2'b10: MUL_Result = MULHSU_out[63:32];  //MULHSU
-            2'b11: MUL_Result = MULHU_out[63:32];   //MULHU
+            2'b00:   MUL_Result = mul_ss[31:0];   // MUL
+            2'b01:   MUL_Result = mul_ss[63:32];  // MULH
+            2'b10:   MUL_Result = mul_su[63:32];  // MULHSU
+            2'b11:   MUL_Result = mul_uu[63:32];  // MULHU
             default: MUL_Result = 32'h00000000;
         endcase
     end
@@ -995,21 +990,21 @@ endmodule
 // ========================================
 
 module Mux_ResultSrcW (
-    input   [1:0]   ResultSrcW,
-    input   [31:0]  ALUResultW,
-    input   [31:0]  ReadDataW,
-    input   [31:0]  PCPlus4W,
-    output reg [31:0]  ALUResultE
+    input  wire [1:0]  ResultSrcW,
+    input  wire [31:0] ALUResultW,
+    input  wire [31:0] ReadDataW,
+    input  wire [31:0] PCPlus4W,
+    output reg  [31:0] ResultW
 );
 
-always @(*) begin
-    case (ResultSrcW) 
-        2'b00: ALUResultE = ALUResultW;
-        2'b01: ALUResultE = ReadDataW;
-        2'b10: ALUResultE = PCPlus4W;
-        default: ALUResultE = ALUResultW;
-    endcase
-end
+    always @(*) begin
+        case (ResultSrcW) 
+            2'b00:   ResultW = ALUResultW;
+            2'b01:   ResultW = ReadDataW;
+            2'b10:   ResultW = PCPlus4W;
+            default: ResultW = ALUResultW;
+        endcase
+    end
 endmodule
 // ========================================
 // File: rtl/Next_PC_Logic.v
@@ -1072,12 +1067,12 @@ endmodule
 // ========================================
 
 module RAS (
-    input             i_clk,
-    input             rst_n,
-    input             Push_Enable,
-    input      [31:0] Push_Data,
-    input             Pop_Enable,
-    output     [31:0] Predicted_PC
+    input  wire        i_clk,
+    input  wire        rst_n,
+    input  wire        Push_Enable,
+    input  wire [31:0] Push_Data,
+    input  wire        Pop_Enable,
+    output wire [31:0] Predicted_PC
 );
     reg [31:0] stack [0:7];
     reg [2:0]  sp;
@@ -1087,13 +1082,13 @@ module RAS (
             sp <= 3'b000;
         end else if (Push_Enable) begin 
             stack[sp] <= Push_Data;     
-            sp <= sp + 1;
+            sp <= sp + 3'd1;
         end else if (Pop_Enable) begin
-            sp <= sp - 1;
+            sp <= sp - 3'd1;
         end
     end
 
-    assign Predicted_PC = stack[sp-1];
+    assign Predicted_PC = stack[sp - 3'd1];
 endmodule
 // ========================================
 // File: rtl/RISCV_Core.v
@@ -1532,7 +1527,7 @@ module RISCV_Core (
         .ALUResultW(ALUResultW),
         .ReadDataW(ReadDataW),
         .PCPlus4W(PCPlus4W),
-        .ALUResultE(ResultW)
+        .ResultW(ResultW)      
     );
 
     // =========================================================================
@@ -1651,7 +1646,7 @@ module Register_File # (
 
     reg [31:0] r_Registers [0:31];
         // Unified Positive-Edge Triggered Write (Eliminates Half-Cycle STA Path)
-    always @(posedge i_Clk or negedge rst_n) begin
+    always @(posedge i_Clk or negedge rst_n) begin : proc_reg_write
         integer i;
         if (!rst_n) begin
             for (i = 0; i < 32; i = i + 1) begin
@@ -1667,7 +1662,2042 @@ module Register_File # (
             end
         end
     end
+    // Asynchronous Read with Internal WB-to-ID Write-Through Bypass
+    assign RD1D = (A1 == 5'h0)              ? 32'h0   :
+                  (RegWriteW && (A3 == A1)) ? ResultW : r_Registers[A1];
 
+    assign RD2D = (A2 == 5'h0)              ? 32'h0   :
+                  (RegWriteW && (A3 == A2)) ? ResultW : r_Registers[A2];
+
+endmodule
+// ========================================
+// File: rtl/Register_ID_EX.v
+// ========================================
+
+module Register_ID_EX (
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    input  wire        StallE,         // Freeze EX pipeline register on D-Bus stall
+    input  wire        FlushE,
+
+    // Control Signals from Control Unit (Decode Stage)
+    input  wire        RegWriteD,
+    input  wire [1:0]  ResultSrcD,
+    input  wire        MemWriteD,
+    input  wire [1:0]  JumpD,
+    input  wire        BranchD,
+    input  wire [1:0]  ExecSelD,
+    input  wire [3:0]  ALUControlD,
+    input  wire [1:0]  MultControlD,
+    input  wire [1:0]  CRCControlD,
+    input  wire [2:0]  BITControlD,
+    input  wire        ALUSrcBD,
+    input  wire [1:0]  ALUSrcAD,
+
+    // Data and Register Fields from Decode Stage
+    input  wire [31:0] RD1,
+    input  wire [31:0] RD2,
+    input  wire [31:0] PCD,
+    input  wire [4:0]  Rs1D,
+    input  wire [4:0]  Rs2D,
+    input  wire [4:0]  RdD,
+    input  wire [2:0]  funct3D,
+    input  wire [31:0] ImmExtD,
+    input  wire [31:0] PCPlus4D,
+    input  wire [31:0] Predicted_PCD,
+    input  wire        Pop_EnableD,
+
+    // Control Signals Output (Execute Stage)
+    output reg         RegWriteE,
+    output reg  [1:0]  ResultSrcE,
+    output reg         MemWriteE,
+    output reg  [1:0]  JumpE,
+    output reg         BranchE,
+    output reg  [1:0]  ExecSelE,
+    output reg  [3:0]  ALUControlE,
+    output reg  [1:0]  MultControlE,
+    output reg  [1:0]  CRCControlE,
+    output reg  [2:0]  BITControlE,
+    output reg         ALUSrcBE,
+    output reg  [1:0]  ALUSrcAE,
+
+    // Data and Register Fields Output (Execute Stage)
+    output reg  [31:0] RD1E,
+    output reg  [31:0] RD2E,
+    output reg  [31:0] PCE,
+    output reg  [4:0]  Rs1E,
+    output reg  [4:0]  Rs2E,
+    output reg  [4:0]  RdE,
+    output reg  [2:0]  funct3E,
+    output reg  [31:0] ImmExtE,
+    output reg  [31:0] PCPlus4E,
+    output reg  [31:0] Predicted_PCE,
+    output reg         Pop_EnableE
+);
+
+    always @(posedge i_Clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // Asynchronous Reset: Clear all control signals and data
+            RegWriteE     <= 1'b0;
+            ResultSrcE    <= 2'b00;
+            MemWriteE     <= 1'b0;
+            JumpE         <= 2'b00;
+            BranchE       <= 1'b0;
+            ExecSelE      <= 2'b00;
+            ALUControlE   <= 4'b0000;
+            MultControlE  <= 2'b00;
+            CRCControlE   <= 2'b00;
+            BITControlE   <= 3'b000;
+            ALUSrcBE      <= 1'b0;
+            ALUSrcAE      <= 2'b00;
+            RD1E          <= 32'h0;
+            RD2E          <= 32'h0;
+            PCE           <= 32'h0;
+            Rs1E          <= 5'b00000;
+            Rs2E          <= 5'b00000;
+            RdE           <= 5'b00000;
+            funct3E       <= 3'b000;
+            ImmExtE       <= 32'h0;
+            PCPlus4E      <= 32'h0;
+            Predicted_PCE <= 32'h0;
+            Pop_EnableE   <= 1'b0;
+        end else if (!StallE) begin
+            if (FlushE) begin
+                // Synchronous Flush / Bubble: Zero out control path and data
+                RegWriteE     <= 1'b0;
+                ResultSrcE    <= 2'b00;
+                MemWriteE     <= 1'b0;
+                JumpE         <= 2'b00;
+                BranchE       <= 1'b0;
+                ExecSelE      <= 2'b00;
+                ALUControlE   <= 4'b0000;
+                MultControlE  <= 2'b00;
+                CRCControlE   <= 2'b00;
+                BITControlE   <= 3'b000;
+                ALUSrcBE      <= 1'b0;
+                ALUSrcAE      <= 2'b00;
+                RD1E          <= 32'h0;
+                RD2E          <= 32'h0;
+                PCE           <= 32'h0;
+                Rs1E          <= 5'b00000;
+                Rs2E          <= 5'b00000;
+                RdE           <= 5'b00000;
+                funct3E       <= 3'b000;
+                ImmExtE       <= 32'h0;
+                PCPlus4E      <= 32'h0;
+                Predicted_PCE <= 32'h0;
+                Pop_EnableE   <= 1'b0;
+            end else begin
+                // Normal Pipeline Advance
+                RegWriteE     <= RegWriteD;
+                ResultSrcE    <= ResultSrcD;
+                MemWriteE     <= MemWriteD;
+                JumpE         <= JumpD;
+                BranchE       <= BranchD;
+                ExecSelE      <= ExecSelD;
+                ALUControlE   <= ALUControlD;
+                MultControlE  <= MultControlD;
+                CRCControlE   <= CRCControlD;
+                BITControlE   <= BITControlD;
+                ALUSrcBE      <= ALUSrcBD;
+                ALUSrcAE      <= ALUSrcAD;
+                RD1E          <= RD1;
+                RD2E          <= RD2;
+                PCE           <= PCD;
+                Rs1E          <= Rs1D;
+                Rs2E          <= Rs2D;
+                RdE           <= RdD;
+                funct3E       <= funct3D;
+                ImmExtE       <= ImmExtD;
+                PCPlus4E      <= PCPlus4D;
+                Predicted_PCE <= Predicted_PCD;
+                Pop_EnableE   <= Pop_EnableD;
+            end
+        end
+        // When StallE == 1'b1, all output registers hold their current values
+    end
+
+endmodule
+// ========================================
+// File: rtl/Register_IF_ID.v
+// ========================================
+
+module Register_IF_ID (
+    input             i_Clk,
+    input             rst_n,
+    input             StallD,
+    input             FlushD,
+    input      [31:0] RD,
+    input      [31:0] PCF,
+    input      [31:0] PCPlus4F,
+    input      [31:0] Predicted_PCF,
+    input             Pop_EnableF,
+
+    output reg [31:0] InstrD,
+    output reg [31:0] PCD,
+    output reg [31:0] PCPlus4D,
+    output reg [31:0] Predicted_PCD,
+    output reg        Pop_EnableD     
+);
+    always @(posedge i_Clk or negedge rst_n) begin
+        if (!rst_n) begin
+            InstrD        <= 32'h0;
+            PCD           <= 32'h0;
+            PCPlus4D      <= 32'h0;
+            Predicted_PCD <= 32'h0;
+            Pop_EnableD   <= 1'b0;
+        end else if (FlushD) begin
+            InstrD        <= 32'h0;
+            PCD           <= 32'h0;
+            PCPlus4D      <= 32'h0;
+            Predicted_PCD <= 32'h0;
+            Pop_EnableD   <= 1'b0;      
+        end else if (!StallD) begin
+            InstrD        <= RD;
+            PCD           <= PCF;
+            PCPlus4D      <= PCPlus4F;
+            Predicted_PCD <= Predicted_PCF; 
+            Pop_EnableD   <= Pop_EnableF;   
+        end
+    end
+endmodule
+// ========================================
+// File: rtl/Register_MEM_WB.v
+// ========================================
+
+module Register_MEM_WB(
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    input  wire        StallW,       // Freezes WB stage during D-Bus wait-states
+    input  wire        RegWriteM,
+    input  wire [1:0]  ResultSrcM,
+    input  wire [31:0] ALUResultM,
+    input  wire [31:0] Formatted_RD,
+    input  wire [4:0]  RdM,
+    input  wire [31:0] PCPlus4M,
+
+    output reg         RegWriteW,
+    output reg  [1:0]  ResultSrcW,
+    output reg  [31:0] ALUResultW,
+    output reg  [31:0] ReadDataW,
+    output reg  [4:0]  RdW,
+    output reg  [31:0] PCPlus4W
+);
+    always @(posedge i_Clk or negedge rst_n) begin
+        if (!rst_n) begin
+            RegWriteW  <= 1'b0;
+            ResultSrcW <= 2'b00;
+            ALUResultW <= 32'h0;
+            ReadDataW  <= 32'h0;
+            RdW        <= 5'b0;
+            PCPlus4W   <= 32'h0;
+        end else if (!StallW) begin
+            RegWriteW  <= RegWriteM;
+            ResultSrcW <= ResultSrcM;
+            ALUResultW <= ALUResultM;
+            ReadDataW  <= Formatted_RD;   
+            RdW        <= RdM;
+            PCPlus4W   <= PCPlus4M;
+        end
+    end
+endmodule
+// ========================================
+// File: rtl/Register_PC.v
+// ========================================
+
+module Register_PC (
+    input             i_Clk,
+    input             rst_n,
+    input             StallF,
+    input      [31:0] PC_next,
+    output reg [31:0] PCF
+);
+    always @(posedge i_Clk or negedge rst_n) begin
+        if (!rst_n) begin
+            PCF <= 32'h00000000;
+        end else if (!StallF) begin
+            PCF <= PC_next;
+        end
+    end
+endmodule
+// ========================================
+// File: rtl/UART_TX.v
+// ========================================
+
+`timescale 1ns / 1ps
+
+module uart_tx #(
+    parameter CLK_FREQ  = 10_000_000,  // Adjust to your actual core clock (e.g., 10MHz or 50MHz)
+    parameter BAUD_RATE = 115_200
+)(
+    input  wire        clk,
+    input  wire        rst_n,
+
+    // Bus Interface
+    input  wire [31:0] d_addr,
+    input  wire [31:0] d_wdata,
+    input  wire        uart_we,
+    input  wire        uart_re,
+    output reg  [31:0] uart_rdata,
+    output wire        uart_ready,
+
+    // Physical Serial Pin to DE1-SoC USB-UART bridge
+    output reg         tx_pin
+);
+
+    localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
+
+    // FSM States
+    localparam STATE_IDLE  = 2'b00;
+    localparam STATE_START = 2'b01;
+    localparam STATE_DATA  = 2'b10;
+    localparam STATE_STOP  = 2'b11;
+
+    reg [1:0]  state       = STATE_IDLE;
+    reg [15:0] clk_cnt     = 16'd0;
+    reg [2:0]  bit_idx     = 3'd0;
+    reg [7:0]  tx_shift    = 8'h00;
+
+    wire is_data_reg   = (d_addr == 32'h30000000);
+    wire is_status_reg = (d_addr == 32'h30000004);
+    wire tx_busy       = (state != STATE_IDLE);
+
+    // If writing while busy, stall the CPU. Otherwise, acknowledge immediately.
+    assign uart_ready = (uart_we && is_data_reg && tx_busy) ? 1'b0 : 1'b1;
+
+    // Bus Read Multiplexing
+    always @(*) begin
+        if (uart_re && is_status_reg) begin
+            uart_rdata = {31'b0, tx_busy}; // bit 0 = 1 if busy, 0 if ready
+        end else begin
+            uart_rdata = 32'h00000000;
+        end
+    end
+
+    // UART Transmitter State Machine
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state    <= STATE_IDLE;
+            clk_cnt  <= 16'd0;
+            bit_idx  <= 3'd0;
+            tx_shift <= 8'h00;
+            tx_pin   <= 1'b1; // Idle high
+        end else begin
+            case (state)
+                STATE_IDLE: begin
+                    tx_pin  <= 1'b1;
+                    clk_cnt <= 16'd0;
+                    bit_idx <= 3'd0;
+                    if (uart_we && is_data_reg && !tx_busy) begin
+                        tx_shift <= d_wdata[7:0];
+                        state    <= STATE_START;
+                    end
+                end
+
+                STATE_START: begin
+                    tx_pin <= 1'b0; // Start bit = 0
+                    if (clk_cnt < CLKS_PER_BIT - 1) begin
+                        clk_cnt <= clk_cnt + 1'b1;
+                    end else begin
+                        clk_cnt <= 16'd0;
+                        state   <= STATE_DATA;
+                    end
+                end
+
+                STATE_DATA: begin
+                    tx_pin <= tx_shift[bit_idx]; // LSB first
+                    if (clk_cnt < CLKS_PER_BIT - 1) begin
+                        clk_cnt <= clk_cnt + 1'b1;
+                    end else begin
+                        clk_cnt <= 16'd0;
+                        if (bit_idx < 3'd7) begin
+                            bit_idx <= bit_idx + 1'b1;
+                        end else begin
+                            bit_idx <= 3'd0;
+                            state   <= STATE_STOP;
+                        end
+                    end
+                end
+
+                STATE_STOP: begin
+                    tx_pin <= 1'b1; // Stop bit = 1
+                    if (clk_cnt < CLKS_PER_BIT - 1) begin
+                        clk_cnt <= clk_cnt + 1'b1;
+                    end else begin
+                        clk_cnt <= 16'd0;
+                        state   <= STATE_IDLE;
+                    end
+                end
+
+                default: state <= STATE_IDLE;
+            endcase
+        end
+    end
+
+endmodule
+// ========================================
+// File: rtl/ALU.v
+// ========================================
+
+module ALU (
+    input wire [31:0]   SrcAE,
+    input wire [31:0]   SrcBE,
+    input wire [3:0]    ALUControlE,
+    output reg [31:0]   ALUResultE,
+    output              o_Zero //to Control_Unit, then to AND gate
+);
+    localparam c_ALU_OP_PASS = 4'h0;
+    localparam c_ALU_OP_ADD  = 4'h1;
+    localparam c_ALU_OP_SUB  = 4'h2;
+    localparam c_ALU_OP_AND  = 4'h3;
+    localparam c_ALU_OP_OR   = 4'h4;
+    localparam c_ALU_OP_XOR  = 4'h5;
+    localparam c_ALU_OP_SLL  = 4'h6;
+    localparam c_ALU_OP_SRL  = 4'h7;
+    localparam c_ALU_OP_SRA  = 4'h8;
+    localparam c_ALU_OP_SLT  = 4'h9;
+    localparam c_ALU_OP_SLTU = 4'hA;
+    localparam c_ALU_OP_BNE  = 4'hB;
+    localparam c_ALU_OP_BLT  = 4'hC;
+    localparam c_ALU_OP_BGE  = 4'hD;
+    localparam c_ALU_OP_BLTU = 4'hE;
+    localparam c_ALU_OP_BGEU = 4'hF;
+ 
+    // o_Zero becomes a "Branch Condition Met" flag for branch operations
+    assign o_Zero = (ALUControlE == c_ALU_OP_BNE)  ? (SrcAE != SrcBE) :
+                    (ALUControlE == c_ALU_OP_BLT)  ? ($signed(SrcAE) < $signed(SrcBE)) :
+                    (ALUControlE == c_ALU_OP_BGE)  ? ($signed(SrcAE) >= $signed(SrcBE)) :
+                    (ALUControlE == c_ALU_OP_BLTU) ? (SrcAE < SrcBE) :
+                    (ALUControlE == c_ALU_OP_BGEU) ? (SrcAE >= SrcBE) :
+                    (ALUResultE == 32'b0); // Default for ADD, SUB, BEQ, and logical ops
+  
+    always @ (*) begin
+        case (ALUControlE)
+            c_ALU_OP_PASS: ALUResultE = SrcBE;
+            c_ALU_OP_ADD:  ALUResultE = SrcAE + SrcBE;
+            c_ALU_OP_SUB:  ALUResultE = SrcAE - SrcBE;
+            c_ALU_OP_AND:  ALUResultE = SrcAE & SrcBE;
+            c_ALU_OP_OR:   ALUResultE = SrcAE | SrcBE;
+            c_ALU_OP_XOR:  ALUResultE = SrcAE ^ SrcBE;
+            c_ALU_OP_SLL:  ALUResultE = SrcAE << SrcBE[4:0];
+            c_ALU_OP_SRL:  ALUResultE = SrcAE >> SrcBE[4:0];
+            c_ALU_OP_SRA:  ALUResultE = $signed(SrcAE) >>> SrcBE[4:0];
+            c_ALU_OP_SLT:   ALUResultE = ($signed(SrcAE) < $signed(SrcBE)) ? 32'd1 : 32'd0;
+            c_ALU_OP_SLTU:  ALUResultE = ($unsigned(SrcAE) < $unsigned(SrcBE)) ? 32'd1 : 32'd0;
+            default:       ALUResultE = 32'b0;
+        endcase
+    end
+endmodule
+
+
+// ========================================
+// File: rtl/Adder_PCPlus4.v
+// ========================================
+
+module Adder_PCPlus4 (
+    input   [31:0]  PCF,
+    output  [31:0]  PCPlus4F
+);
+
+assign PCPlus4F = PCF + 4;
+endmodule
+// ========================================
+// File: rtl/Adder_PC_Target.v
+// ========================================
+
+module Adder_PC_Target (
+    input   [31:0]  ImmExtE,
+    input   [31:0]  PCE,
+    output  [31:0]  PCTargetE
+);
+
+assign PCTargetE = PCE+ImmExtE;
+endmodule
+// ========================================
+// File: rtl/Address_Decoder.v
+// ========================================
+
+`timescale 1ns / 1ps
+
+module address_decoder (
+    input  wire        clk,
+    input  wire        rst_n,
+
+    // ==========================================
+    // Master Interface (From RISCV_Core D-Bus)
+    // ==========================================
+    input  wire [31:0] d_addr,
+    input  wire [31:0] d_wdata,
+    input  wire [3:0]  d_we,
+    input  wire        d_req,
+    output reg  [31:0] d_rdata,
+    output reg         d_ready,
+
+    // ==========================================
+    // Slave 0: Data Memory (DMEM) Interface
+    // ==========================================
+    output wire        dmem_we,
+    output wire        dmem_oe,
+    input  wire [31:0] dmem_rdata,
+
+    // ==========================================
+    // Slave 1: UART Controller Interface
+    // ==========================================
+    output wire        uart_we,
+    output wire        uart_re,
+    input  wire [31:0] uart_rdata,
+    input  wire        uart_ready
+);
+
+    // ==========================================
+    // Memory Map Decoding
+    // ==========================================
+    wire sel_dmem = d_req && (d_addr[31:12] == 20'h10010);
+    wire sel_uart = d_req && (d_addr[31:4]  == 28'h3000000);
+    
+    // ==========================================
+    // Slave Request Routing
+    // ==========================================
+    assign dmem_we = sel_dmem && (|d_we);
+    assign dmem_oe = sel_dmem && (d_we == 4'b0000);
+
+    assign uart_we = sel_uart && (|d_we);
+    assign uart_re = sel_uart && (d_we == 4'b0000);
+
+    // ==========================================
+    // 1-Cycle Synchronous BRAM Read Handshake
+    // ==========================================
+    reg dmem_read_ready;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dmem_read_ready <= 1'b0;
+        end else if (dmem_oe && !dmem_read_ready) begin
+            dmem_read_ready <= 1'b1; // Data latched into BRAM output register
+        end else begin
+            dmem_read_ready <= 1'b0; // Ready for next access
+        end
+    end
+
+    // ==========================================
+    // Master Response Multiplexing
+    // ==========================================
+    always @(*) begin
+        if (sel_uart) begin
+            d_rdata = uart_rdata;
+            d_ready = uart_ready;
+        end else if (sel_dmem) begin
+            d_rdata = dmem_rdata;
+            // Writes finish in 1 cycle; Reads wait 1 cycle for synchronous BRAM output
+            d_ready = dmem_oe ? dmem_read_ready : 1'b1;
+        end else begin
+            d_rdata = 32'h00000000;
+            d_ready = 1'b1;
+        end
+    end
+
+endmodule
+// ========================================
+// File: rtl/BITMANIP.v
+// ========================================
+
+module BITMANIP (
+    input  wire [31:0] SrcAE,
+    input  wire [31:0] SrcBE,
+    input  wire [2:0]  BIT_Control,
+    output reg  [31:0] BIT_Result
+);
+
+    always @(*) begin : proc_bitmanip
+        integer i;
+        
+        BIT_Result = 32'h00000000;
+
+        case (BIT_Control)
+            3'b000: begin // clz (count leading zeros)
+                BIT_Result = 32'd32;
+                for (i = 0; i < 32; i = i + 1) begin
+                    if (SrcAE[i]) begin
+                        BIT_Result = 31 - i;
+                    end
+                end
+            end
+
+            3'b001: begin // cpop (population count)
+                BIT_Result = 32'd0;
+                for (i = 0; i < 32; i = i + 1) begin
+                    BIT_Result = BIT_Result + SrcAE[i];
+                end
+            end
+
+            3'b010: begin // rev8 (byte reverse / endian swap)
+                BIT_Result = {SrcAE[7:0], SrcAE[15:8], SrcAE[23:16], SrcAE[31:24]};
+            end
+
+            3'b011: begin // rol (rotate left)
+                if (SrcBE[4:0] == 5'd0) begin
+                    BIT_Result = SrcAE;
+                end else begin
+                    BIT_Result = (SrcAE << SrcBE[4:0]) | (SrcAE >> (6'd32 - SrcBE[4:0]));
+                end
+            end
+
+            3'b100: begin // ror (rotate right)
+                if (SrcBE[4:0] == 5'd0) begin
+                    BIT_Result = SrcAE;
+                end else begin
+                    BIT_Result = (SrcAE >> SrcBE[4:0]) | (SrcAE << (6'd32 - SrcBE[4:0]));
+                end
+            end
+
+            default: begin
+                BIT_Result = 32'h00000000;
+            end
+        endcase
+    end
+
+endmodule
+// ========================================
+// File: rtl/Branch_Monitor.v
+// ========================================
+
+module Branch_Monitor(
+    input   [31:0]  Predicted_PCE,
+    input   [31:0]  ALUResultE,
+    input           Pop_EnableE,
+    output          Mispredict_Flag
+);
+    //The Mispredict_Flag goes HIGH if and only if:
+    //1) The current instruction is actually a return (Pop_EnableE == 1)
+    //2) The Predicted_PCE != ALUResultE);
+
+    assign Mispredict_Flag = Pop_EnableE & (Predicted_PCE != ALUResultE);
+endmodule
+// ========================================
+// File: rtl/CRC.v
+// ========================================
+
+module CRC(
+    input wire [1:0] CRC_Control,
+    input wire [31:0] SrcA,
+    input wire [31:0] SrcB, 
+    output reg [31:0] CRC_Result
+);
+
+    // CRC8 logic 
+    function [7:0] CRC8 (input [31:0] data, input [31:0] seed); //8'h07
+        reg [7:0] crc;
+        reg inv;
+        integer i;
+        begin
+            crc = seed[7:0];
+            for (i=31; i>=0; i = i -1) begin
+                inv = crc[7] ^ data[i];
+                crc = (crc << 1) ^ ({8{inv}} & 8'h07);
+            end
+            CRC8 = crc;
+        end
+    endfunction
+
+    // CRC16 logic 
+    function [15:0] CRC16 (input [31:0] data, input [31:0] seed); //16'h8005
+        reg [15:0] crc;
+        reg inv;
+        integer i;
+        begin
+            crc = seed[15:0];
+            for (i=31; i>=0; i = i -1) begin
+                inv = crc[15] ^ data[i];
+                crc = (crc << 1) ^ ({16{inv}} & 16'h8005);
+            end
+            CRC16 = crc;
+        end
+    endfunction
+
+    // CRC32 logic 
+    function [31:0] CRC32 (input [31:0] data, input [31:0] seed); //32'h04C11DB7
+        reg [31:0] crc;
+        reg inv;
+        integer i;
+        begin
+            crc = seed;
+            for (i=31; i>=0; i = i -1) begin
+                inv = crc[31] ^ data[i];
+                crc = (crc << 1) ^ ({32{inv}} & 32'h04C11DB7);
+            end
+            CRC32 = crc;
+        end
+    endfunction
+
+    always @(*) begin 
+        case (CRC_Control)
+            2'b00: CRC_Result = {24'h000000, CRC8(SrcA, SrcB)};
+            2'b01: CRC_Result = {16'h0000, CRC16(SrcA, SrcB)};
+            2'b10: CRC_Result = CRC32(SrcA, SrcB);
+            default: CRC_Result = 32'h00000000;
+        endcase
+    end
+endmodule
+// ========================================
+// File: rtl/Control_Unit.v
+// ========================================
+
+module Control_Unit (
+    input       [6:0]   op,
+    input       [2:0]   funct3,
+    input       [6:0]   funct7,  
+    input       [4:0]   rs2D, 
+
+    output reg          RegWriteD,
+    output reg  [1:0]   ResultSrcD,
+    output reg          MemWriteD,
+    output reg  [1:0]   JumpD,
+    output reg          BranchD,
+
+    output reg  [1:0]   ExecSelD,
+    output reg  [2:0]   BITControlD,
+    output reg  [1:0]   MultControlD,
+    output reg  [1:0]   CRCControlD,
+    output reg  [3:0]   ALUControlD,
+    output reg          ALUSrcBD,
+    output reg  [1:0]   ALUSrcAD,  
+    output reg  [2:0]   ImmSrcD     
+);
+
+    always @(*) begin
+        // Complete default assignments (Prevents inferred latches in Synopsys DC)
+        RegWriteD    = 1'b0;
+        ResultSrcD   = 2'b00;
+        MemWriteD    = 1'b0;
+        JumpD        = 2'b00;
+        BranchD      = 1'b0;
+
+        ExecSelD     = 2'b00;
+        BITControlD  = 3'b000;   // <--- Fixed: prevents 3-bit latch inference
+        MultControlD = 2'b00;
+        CRCControlD  = 2'b00;
+
+        ALUControlD  = 4'b0000;
+        ALUSrcBD     = 1'b0;
+        ALUSrcAD     = 2'b00; 
+        ImmSrcD      = 3'b000;
+
+        case (op)
+            7'b0110011, 7'b0010011: begin   
+                RegWriteD   = 1'b1;
+                ResultSrcD  = 2'b00;
+                ALUSrcBD    = (op == 7'b0010011);
+                ImmSrcD     = 3'b000;
+
+               if (op == 7'b0010011) begin
+                    case ({funct7, funct3, rs2D})
+                        {7'b0110000, 3'b001, 5'b00000}: begin // clz
+                            ExecSelD    = 2'b11;
+                            BITControlD = 3'b000;
+                        end
+                        {7'b0110000, 3'b001, 5'b00010}: begin // cpop
+                            ExecSelD    = 2'b11;
+                            BITControlD = 3'b001;
+                        end
+                        {7'b0110100, 3'b101, 5'b11000}: begin // rev8
+                            ExecSelD    = 2'b11;
+                            BITControlD = 3'b010;
+                        end
+                        default: ; // Preserves standard slli, srli, srai
+                    endcase
+                end else begin
+                    case (funct7)
+                        7'b0110000: begin
+                            ExecSelD     = 2'b11;
+                            BITControlD  = (funct3 == 3'b001) ? 3'b011 : 3'b100;
+                        end
+                        7'b0000001: begin
+                            ExecSelD     = 2'b01;
+                            MultControlD = funct3[1:0];
+                        end
+                        7'b1000000: begin
+                            ExecSelD     = 2'b10;
+                            CRCControlD  = funct3[1:0];
+                        end
+                        default: ;
+                    endcase
+                end
+
+                case (funct3)
+                    3'b000: ALUControlD = (funct7[5] == 1'b1 && op == 7'b0110011) ? 4'h2 : 4'h1;
+                    3'b001: ALUControlD = 4'h6;
+                    3'b010: ALUControlD = 4'h9;
+                    3'b011: ALUControlD = 4'hA;
+                    3'b100: ALUControlD = 4'h5;
+                    3'b101: ALUControlD = (funct7[5] == 1'b1) ? 4'h8 : 4'h7;
+                    3'b110: ALUControlD = 4'h4;
+                    3'b111: ALUControlD = 4'h3;
+                    default: ALUControlD = 4'h0;
+                endcase
+            end
+
+            7'b0000011: begin               
+                RegWriteD   = 1'b1;
+                ResultSrcD  = 2'b01;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b000;
+                ALUControlD = 4'h1;
+            end
+
+            7'b0100011: begin               
+                MemWriteD   = 1'b1;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b001;
+                ALUControlD = 4'h1;
+            end
+
+            7'b1100011: begin               
+                ALUSrcBD    = 1'b0;
+                ImmSrcD     = 3'b010;   
+                BranchD     = 1'b1;
+                case(funct3)
+                    3'b000: ALUControlD = 4'h2;
+                    3'b001: ALUControlD = 4'hB;
+                    3'b100: ALUControlD = 4'hC;
+                    3'b101: ALUControlD = 4'hD;
+                    3'b110: ALUControlD = 4'hE;
+                    3'b111: ALUControlD = 4'hF;
+                    default: ALUControlD = 4'h0;
+                endcase
+            end
+
+            7'b1101111: begin               
+                RegWriteD   = 1'b1;
+                JumpD       = 2'b01;
+                ResultSrcD  = 2'b10;
+                ImmSrcD     = 3'b011;
+            end
+
+            7'b1100111: begin               
+                RegWriteD   = 1'b1;
+                JumpD       = 2'b10;
+                ResultSrcD  = 2'b10;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b000;
+                ALUControlD = 4'h1;
+            end
+
+            7'b0110111: begin   
+                RegWriteD   = 1'b1;
+                ResultSrcD  = 2'b00;
+                ALUSrcAD    = 2'b10;  
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b100;
+                ALUControlD = 4'h0;
+            end
+
+            7'b0010111: begin 
+                RegWriteD   = 1'b1;
+                ResultSrcD  = 2'b00;
+                ALUSrcAD    = 2'b01;
+                ALUSrcBD    = 1'b1;
+                ImmSrcD     = 3'b100;
+                ALUControlD = 4'h1;
+            end
+
+            7'b1110011, 7'b0001111: begin               
+            end
+
+            default: begin
+            end
+        endcase
+    end
+endmodule
+// ========================================
+// File: rtl/DMEM.v
+// ========================================
+
+module DMEM (
+    input  wire        i_Clk,
+    input  wire        WE,
+    input  wire        OE,
+    input  wire [3:0]  BW,
+    input  wire [31:0] A,
+    input  wire [31:0] WD,
+    output reg  [31:0] RD
+);
+
+    // Hint to Quartus to map directly to M10K Block RAM
+    (* ramstyle = "M10K" *) reg [31:0] RAM [0:1023]; // 4KB (1024 words x 32 bits)
+
+    integer i;
+    initial begin
+        for (i = 0; i < 1024; i = i + 1) begin
+            RAM[i] = 32'h00000000;
+        end
+        RD = 32'h00000000;
+    end
+
+    // Zero-gate wire slice (replaces 32-bit subtractor)
+    wire [9:0] word_index = A[11:2];
+
+    // Synchronous Write (Byte-Enabled) & Synchronous Read for True BRAM Inference
+    always @(posedge i_Clk) begin
+        if (WE) begin
+            if (BW[0]) RAM[word_index][7:0]   <= WD[7:0];
+            if (BW[1]) RAM[word_index][15:8]  <= WD[15:8];
+            if (BW[2]) RAM[word_index][23:16] <= WD[23:16];
+            if (BW[3]) RAM[word_index][31:24] <= WD[31:24];
+        end
+        if (OE) begin
+            RD <= RAM[word_index];
+        end
+    end
+
+endmodule
+// ========================================
+// File: rtl/Extend.v
+// ========================================
+
+module extend (
+    input       [31:7]  InstrD,
+    input       [2:0]   ImmSrcD,
+    output reg  [31:0]  ImmExt
+);
+
+always @(*) begin
+    case(ImmSrcD)
+        3'b000: ImmExt = {{20{InstrD[31]}},InstrD[31:20]};                              //I-type (addi,lw,jalr)
+        3'b001: ImmExt = {{20{InstrD[31]}},InstrD[31:25],InstrD[11:7]};                 //S-type (sw)
+        3'b010: ImmExt = {{20{InstrD[31]}},InstrD[7],InstrD[30:25],InstrD[11:8],1'b0};  //B-type (Bne)
+        3'b011: ImmExt = {{12{InstrD[31]}},InstrD[19:12],InstrD[20],InstrD[30:21],1'b0};//J-type (jal)
+        3'b100: ImmExt = {InstrD[31:12],12'b0};                                         //U-type (lui,auipc)
+        default: ImmExt = 32'b0;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Hazard_Unit.v
+// ========================================
+
+module Hazard_Unit (
+    // ==========================================
+    // Input for Data Forwarding (EX Stage)
+    // ==========================================
+    input       [4:0]   Rs1E,
+    input       [4:0]   Rs2E,
+    input       [4:0]   RdM, RdW,
+    input               RegWriteM, RegWriteW,
+    input               Mispredict_Flag,
+
+    // ==========================================
+    // Input for Load-Use Stalls (ID Stage)
+    // ==========================================
+    input       [4:0]   Rs1D,
+    input       [4:0]   Rs2D,
+    input       [4:0]   RdE,
+    input       [1:0]   ResultSrcE, // bit 0 detects whether EX stage is a Load
+
+    // ==========================================
+    // Input for Control Hazards (EX Stage)
+    // ==========================================
+    input       [1:0]   PCSrcE,     // >0 means Branch/Jump taken
+
+    // ==========================================
+    // NEW: Inputs for Bus Handshake (MEM Stage)
+    // ==========================================
+    input  wire         d_req,      // Core requested memory/peripheral access
+    input  wire         d_ready,    // Memory/peripheral ready handshake (1=ready, 0=wait)
+
+    // ==========================================
+    // Hazard Control Outputs
+    // ==========================================
+    output reg  [1:0]   ForwardAE, ForwardBE,
+    output reg          StallF, StallD,
+    output reg          StallE, StallM, // NEW: Freeze EX & MEM when D-Bus waits
+    output reg          FlushD, FlushE
+);
+
+    reg  lwStall;
+    wire d_stall;
+
+    // Data bus stall occurs when access is requested but peripheral/BRAM is not ready
+    assign d_stall = d_req & ~d_ready;
+
+    always @(*) begin
+        // ----------------------------------------------------
+        // 1. Data Forwarding Logic (EX Stage)
+        // ----------------------------------------------------
+        // Forwarding for Operand A (Rs1E)
+        if (RegWriteM && (RdM != 5'b0) && (RdM == Rs1E)) begin
+            ForwardAE = 2'b10;      // Forward from MEM stage
+        end else if (RegWriteW && (RdW != 5'b0) && (RdW == Rs1E)) begin
+            ForwardAE = 2'b01;      // Forward from WB stage
+        end else begin
+            ForwardAE = 2'b00;      // Default: register file output
+        end
+
+        // Forwarding for Operand B (Rs2E)
+        if (RegWriteM && (RdM != 5'b0) && (RdM == Rs2E)) begin
+            ForwardBE = 2'b10;      // Forward from MEM stage
+        end else if (RegWriteW && (RdW != 5'b0) && (RdW == Rs2E)) begin
+            ForwardBE = 2'b01;      // Forward from WB stage
+        end else begin
+            ForwardBE = 2'b00;      // Default: register file output
+        end
+
+        // ----------------------------------------------------
+        // 2. Load-Use Hazard Detection (ID Stage)
+        // ----------------------------------------------------
+        if ((ResultSrcE[0] == 1'b1) && (RdE != 5'b00000) && ((RdE == Rs1D) || (RdE == Rs2D))) begin
+            lwStall = 1'b1;
+        end else begin
+            lwStall = 1'b0;
+        end
+
+        // ----------------------------------------------------
+        // 3. Pipeline Stall Routing
+        // ----------------------------------------------------
+        // Freeze IF and ID on either Load-Use bubble OR external memory wait
+        StallF = lwStall | d_stall;
+        StallD = lwStall | d_stall;
+
+        // Freeze EX and MEM strictly on external memory wait
+        StallE = d_stall;
+        StallM = d_stall;
+
+        // ----------------------------------------------------
+        // 4. Pipeline Flush Routing
+        // ----------------------------------------------------
+        // Flush Decode stage on branch/jump or RAS mispredict,
+        // but NEVER flush if the pipeline is frozen on a bus stall
+        if (!d_stall && ((PCSrcE != 2'b00) || (Mispredict_Flag == 1'b1))) begin
+            FlushD = 1'b1;
+        end else begin
+            FlushD = 1'b0;
+        end
+
+        // Flush Execute stage (insert bubble):
+        // Only insert bubble on Load-Use stall or Control hazard,
+        // and NEVER flush during a d_stall (otherwise the instruction in EX is destroyed)
+        if (!d_stall && (lwStall || (PCSrcE != 2'b00) || (Mispredict_Flag == 1'b1))) begin
+            FlushE = 1'b1;
+        end else begin
+            FlushE = 1'b0;
+        end
+    end
+
+endmodule
+// ========================================
+// File: rtl/IMEM.v
+// ========================================
+
+module IMEM (
+    input wire [31:0] A,
+    output reg [31:0] RD,
+    input wire        OE        //permanently turned on (1'b1)
+);
+
+    reg [31:0] ROM [0:1023]; //4kb (1024 words x 32bits)
+
+    //$readmemh reads hexadecimal text file and load into ROM array
+    initial begin
+        $readmemh("program.hex",ROM);
+    end
+
+    //Address Translation: PC, program counter counts by 4 (0x0, 0x4, 0x8...)
+    //Shifting right by 2 (divide by 4) converts byte-address into word_index
+    //Assuming IMEM starts at address 0x0000_0000.
+    wire [9:0] word_index = A[11:2];
+
+    //Combinational Read Logic
+    always @(*) begin
+        if (OE) begin
+            RD = ROM[word_index];
+        end else begin
+            RD = 32'h00000013; //NOP instruction (addi x0,x0,0)
+        end
+    end
+endmodule
+        
+
+    
+
+// ========================================
+// File: rtl/Instruction_Splitter.v
+// ========================================
+
+module Instruction_Splitter(
+    input       [31:0]  InstrD,
+    output      [6:0]   funct7,
+    output      [4:0]   rs2,
+    output      [4:0]   rs1,
+    output      [2:0]   funct3,
+    output      [4:0]   rd,
+    output      [6:0]   opcode,
+    output      [31:0]  Instr
+);
+
+assign funct7 = InstrD[31:25];
+assign rs2 = InstrD[24:20];
+assign rs1 = InstrD[19:15];
+assign funct3 = InstrD[14:12];
+assign rd = InstrD[11:7];
+assign opcode = InstrD[6:0];
+assign Instr = InstrD;
+
+endmodule
+// ========================================
+// File: rtl/LSU.v
+// ========================================
+
+module LSU (
+    input  wire [2:0]  funct3M,
+    input  wire [1:0]  ALUResultM,          // Bottom 2 bits for byte alignment
+    input  wire [31:0] RD,                  // Raw read data from DMEM
+    output reg  [3:0]  BW,                  // Byte write enable to DMEM
+    output reg  [31:0] Formatted_ReadDataM  // Formatted data to Writeback
+);
+
+    always @(*) begin
+        // Default assignments
+        BW                  = 4'b0000;
+        Formatted_ReadDataM = 32'h00000000;
+
+        // -------------------------------------------------------------
+        // Write Path: Byte Enable (BW) generation
+        // -------------------------------------------------------------
+        case (funct3M[1:0])
+            2'b00: begin // sb (store byte)
+                case (ALUResultM)
+                    2'b00:   BW = 4'b0001;
+                    2'b01:   BW = 4'b0010;
+                    2'b10:   BW = 4'b0100;
+                    2'b11:   BW = 4'b1000;
+                    default: BW = 4'b0001;
+                endcase
+            end
+
+            2'b01: begin // sh (store halfword)
+                case (ALUResultM[1])
+                    1'b0:    BW = 4'b0011;
+                    1'b1:    BW = 4'b1100;
+                    default: BW = 4'b0011;
+                endcase
+            end
+
+            2'b10: begin // sw (store word)
+                BW = 4'b1111;
+            end
+
+            default: begin
+                BW = 4'b0000;
+            end
+        endcase
+
+        // -------------------------------------------------------------
+        // Read Path: Sign/Zero extension and sub-word alignment
+        // -------------------------------------------------------------
+        case (funct3M)
+            3'b000: begin // lb (load byte, sign-extended)
+                case (ALUResultM)
+                    2'b00:   Formatted_ReadDataM = {{24{RD[7]}},  RD[7:0]};
+                    2'b01:   Formatted_ReadDataM = {{24{RD[15]}}, RD[15:8]};
+                    2'b10:   Formatted_ReadDataM = {{24{RD[23]}}, RD[23:16]};
+                    2'b11:   Formatted_ReadDataM = {{24{RD[31]}}, RD[31:24]};
+                    default: Formatted_ReadDataM = {{24{RD[7]}},  RD[7:0]};
+                endcase
+            end
+
+            3'b100: begin // lbu (load byte unsigned, zero-extended)
+                case (ALUResultM)
+                    2'b00:   Formatted_ReadDataM = {24'b0, RD[7:0]};
+                    2'b01:   Formatted_ReadDataM = {24'b0, RD[15:8]};
+                    2'b10:   Formatted_ReadDataM = {24'b0, RD[23:16]};
+                    2'b11:   Formatted_ReadDataM = {24'b0, RD[31:24]};
+                    default: Formatted_ReadDataM = {24'b0, RD[7:0]};
+                endcase
+            end
+
+            3'b001: begin // lh (load halfword, sign-extended)
+                case (ALUResultM[1])
+                    1'b0:    Formatted_ReadDataM = {{16{RD[15]}}, RD[15:0]};
+                    1'b1:    Formatted_ReadDataM = {{16{RD[31]}}, RD[31:16]};
+                    default: Formatted_ReadDataM = {{16{RD[15]}}, RD[15:0]};
+                endcase
+            end
+
+            3'b101: begin // lhu (load halfword unsigned, zero-extended)
+                case (ALUResultM[1])
+                    1'b0:    Formatted_ReadDataM = {16'b0, RD[15:0]};
+                    1'b1:    Formatted_ReadDataM = {16'b0, RD[31:16]};
+                    default: Formatted_ReadDataM = {16'b0, RD[15:0]};
+                endcase
+            end
+
+            3'b010: begin // lw (load word)
+                Formatted_ReadDataM = RD;
+            end
+
+            default: begin
+                Formatted_ReadDataM = RD;
+            end
+        endcase
+    end
+
+endmodule
+// ========================================
+// File: rtl/MULT.v
+// ========================================
+
+module MULT(
+    input  wire [1:0]  MUL_Control,
+    input  wire [31:0] SrcA,
+    input  wire [31:0] SrcB, 
+    output reg  [31:0] MUL_Result
+);
+
+    wire signed [63:0] mul_ss = $signed(SrcA) * $signed(SrcB);
+    wire signed [63:0] mul_su = $signed(SrcA) * $signed({1'b0, SrcB});
+    wire        [63:0] mul_uu = SrcA * SrcB;
+
+    always @(*) begin
+        case (MUL_Control)
+            2'b00:   MUL_Result = mul_ss[31:0];   // MUL
+            2'b01:   MUL_Result = mul_ss[63:32];  // MULH
+            2'b10:   MUL_Result = mul_su[63:32];  // MULHSU
+            2'b11:   MUL_Result = mul_uu[63:32];  // MULHU
+            default: MUL_Result = 32'h00000000;
+        endcase
+    end
+endmodule
+// ========================================
+// File: rtl/MUX_Fetch_Control.v
+// ========================================
+
+module MUX_Fetch_Control (
+    input       [1:0] PCSrcE,
+    input             Pop_Enable,
+    output reg  [1:0] MUX_PCSel
+);
+
+always @(*) begin
+    if (PCSrcE != 2'b00) begin
+        // PRIORITY 1: Execute stage override
+        // Route PCSrcE directly to the MUX (Selects 01 for PCTargetE or 10 for ALUResultE)
+        MUX_PCSel = PCSrcE; 
+        
+    end else if (Pop_Enable == 1'b1) begin
+        // PRIORITY 2: RAS Prediction
+        // Force the MUX to select port 11 (Predicted_PC)
+        MUX_PCSel = 2'b11; 
+        
+    end else begin
+        // PRIORITY 3: Default Sequential Fetch
+        // Force the MUX to select port 00 (PCPlus4F)
+        MUX_PCSel = 2'b00; 
+    end
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ALUSrcAE.v
+// ========================================
+
+module Mux_ALUSrcAE (
+    input   [1:0]   ALUSrcAE,
+    input   [31:0]  Formatted_SrcAE,
+    input   [31:0]  PCE,
+    output reg [31:0]  SrcAE
+);
+
+always @(*) begin
+    case (ALUSrcAE) 
+        2'b00: SrcAE = Formatted_SrcAE;
+        2'b01: SrcAE = PCE;
+        2'b10: SrcAE = 0;
+        default: SrcAE = Formatted_SrcAE;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ALUSrcBE.v
+// ========================================
+
+module Mux_ALUSrcBE (
+    input           ALUSrcBE,
+    input   [31:0]  Formatted_SrcBE,
+    input   [31:0]  ImmExtE,
+    output reg [31:0]  SrcBE
+);
+
+always @(*) begin
+    case (ALUSrcBE) 
+        1'b0: SrcBE = Formatted_SrcBE;
+        1'b1: SrcBE = ImmExtE;
+        default: SrcBE = Formatted_SrcBE;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ExecSelE.v
+// ========================================
+
+module Mux_ExecSelE (
+    input   [1:0]   ExecSelE,
+    input   [31:0]  ALU,
+    input   [31:0]  MULT,
+    input   [31:0]  CRC,
+    input   [31:0]  BITMANIP,
+    output reg [31:0]  ALUResultE
+);
+
+always @(*) begin
+    case (ExecSelE) 
+        2'b00: ALUResultE = ALU;
+        2'b01: ALUResultE = MULT;
+        2'b10: ALUResultE = CRC;
+        2'b11: ALUResultE = BITMANIP;
+        default: ALUResultE = ALU;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ForwardAE.v
+// ========================================
+
+module Mux_ForwardAE (
+    input   [1:0]   ForwardAE,
+    input   [31:0]  RD1,
+    input   [31:0]  ResultW,
+    input   [31:0]  ALUResultM,
+    output reg [31:0]  Formatted_RD1
+);
+
+always @(*) begin
+    case (ForwardAE) 
+        2'b00: Formatted_RD1 = RD1;
+        2'b01: Formatted_RD1 = ResultW;
+        2'b10: Formatted_RD1 = ALUResultM;
+        default: Formatted_RD1 = RD1;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ForwardBE.v
+// ========================================
+
+module Mux_ForwardBE (
+    input   [1:0]   ForwardBE,
+    input   [31:0]  RD2,
+    input   [31:0]  ResultW,
+    input   [31:0]  ALUResultM,
+    output reg [31:0]  Formatted_RD2
+);
+
+always @(*) begin
+    case (ForwardBE) 
+        2'b00: Formatted_RD2 = RD2;
+        2'b01: Formatted_RD2 = ResultW;
+        2'b10: Formatted_RD2 = ALUResultM;
+        default: Formatted_RD2 = RD2;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_PC.v
+// ========================================
+
+module Mux_PC (
+    input   [1:0]   MUX_PCSel,
+    input   [31:0]  PCPlus4F,
+    input   [31:0]  PCTargetE,
+    input   [31:0]  ALUResultE,
+    input   [31:0]  Predicted_PC,
+    output reg [31:0]  PC_next
+);
+
+always @(*) begin
+    case (MUX_PCSel) 
+        2'b00: PC_next = PCPlus4F;
+        2'b01: PC_next = PCTargetE;
+        2'b10: PC_next = ALUResultE;
+        2'b11: PC_next = Predicted_PC;
+        default: PC_next = PCPlus4F;
+    endcase
+end
+endmodule
+// ========================================
+// File: rtl/Mux_ResultSrcW.v
+// ========================================
+
+module Mux_ResultSrcW (
+    input  wire [1:0]  ResultSrcW,
+    input  wire [31:0] ALUResultW,
+    input  wire [31:0] ReadDataW,
+    input  wire [31:0] PCPlus4W,
+    output reg  [31:0] ResultW
+);
+
+    always @(*) begin
+        case (ResultSrcW) 
+            2'b00:   ResultW = ALUResultW;
+            2'b01:   ResultW = ReadDataW;
+            2'b10:   ResultW = PCPlus4W;
+            default: ResultW = ALUResultW;
+        endcase
+    end
+endmodule
+// ========================================
+// File: rtl/Next_PC_Logic.v
+// ========================================
+
+module Next_PC_Logic (
+    input           ZeroE,
+    input           BranchE,
+    input   [1:0]   JumpE,
+    input           Pop_EnableE,       // NEW: Did we use the RAS?
+    input           Mispredict_Flag,   // NEW: Was the RAS wrong?
+    output reg [1:0] PCSrcE
+);
+
+always @(*) begin
+    if (JumpE == 2'b10) begin
+        // It's a JALR. If we used RAS and guessed right, suppress the jump!
+        if (Pop_EnableE && !Mispredict_Flag) begin
+            PCSrcE = 2'b00; // Suppress! Let the predicted instructions flow natively.
+        end else begin
+            PCSrcE = 2'b10; // Mispredict or normal JALR override
+        end
+    end else if (JumpE == 2'b01 || (BranchE == 1'b1 && ZeroE == 1'b1)) begin
+        PCSrcE = 2'b01;
+    end else begin
+        PCSrcE = 2'b00;
+    end
+end
+endmodule
+// ========================================
+// File: rtl/Pre_Decoder.v
+// ========================================
+
+module Pre_Decoder (
+    input       [31:0]  InstrF,
+    output wire         Push_Enable,
+    output wire         Pop_Enable
+);
+
+    wire [6:0] opF  = InstrF[6:0];
+    wire [4:0] rdF  = InstrF[11:7];
+    wire [4:0] rs1F = InstrF[19:15];
+
+    // Detect if instruction is a CALL
+    wire is_JAL_F   = (opF == 7'b1101111);
+    wire is_JALR_F  = (opF == 7'b1100111); 
+    wire is_Call_F  = (is_JAL_F || is_JALR_F) && (rdF == 5'd1 || rdF == 5'd5); 
+        //5'd1 (x1/ra) --> return address
+        //5'd5 (x5/t0) --> Temporary register / Alternate link register
+
+    // Detect if instruction is a RETURN
+    wire is_Return_F= is_JALR_F && (rs1F == 5'd1 || rs1F == 5'd5) && (rdF == 5'd0);
+
+    assign Push_Enable = is_Call_F;
+    assign Pop_Enable  = is_Return_F;
+
+endmodule
+// ========================================
+// File: rtl/RAS.v
+// ========================================
+
+module RAS (
+    input  wire        i_clk,
+    input  wire        rst_n,
+    input  wire        Push_Enable,
+    input  wire [31:0] Push_Data,
+    input  wire        Pop_Enable,
+    output wire [31:0] Predicted_PC
+);
+    reg [31:0] stack [0:7];
+    reg [2:0]  sp;
+
+    always @(posedge i_clk or negedge rst_n) begin 
+        if (!rst_n) begin
+            sp <= 3'b000;
+        end else if (Push_Enable) begin 
+            stack[sp] <= Push_Data;     
+            sp <= sp + 3'd1;
+        end else if (Pop_Enable) begin
+            sp <= sp - 3'd1;
+        end
+    end
+
+    assign Predicted_PC = stack[sp - 3'd1];
+endmodule
+// ========================================
+// File: rtl/RISCV_Core.v
+// ========================================
+
+`timescale 1ns / 1ps
+
+module RISCV_Core (
+    input  wire        clk,
+    input  wire        rst_n,            // Active-low asynchronous reset
+
+    // ==========================================
+    // Existing Bus Ports
+    // ==========================================
+    output wire        o_mispredict_flag,// Debug: passes Mispredict_Flag
+    output wire [31:0] o_debug_x4,       // Debug: passes register x4
+
+    // ==========================================
+    // Instruction Bus Interface (I-Bus)
+    // ==========================================
+    output wire [31:0] i_addr,           // Instruction fetch address (PCF)
+    output wire        i_req,            // Instruction fetch request
+    input  wire [31:0] i_rdata,          // Incoming instruction (InstrF)
+
+    // ==========================================
+    // Data Bus Interface (D-Bus)
+    // ==========================================
+    output wire [31:0] d_addr,           // Memory access address (ALUResultM)
+    output wire [31:0] d_wdata,          // Memory write data (WriteDataM)
+    output wire [3:0]  d_we,             // Byte-write enables (sb=0001, sh=0011, sw=1111)
+    output wire        d_req,            // Memory read/write request
+    input  wire [31:0] d_rdata,          // Incoming raw load data
+    input  wire        d_ready           // 1 when memory/peripheral is ready, 0 when waiting
+);
+
+    // =========================================================================
+    // 1. INTERNAL WIRE DECLARATIONS
+    // =========================================================================
+
+    // --- Hazard Unit ---
+    wire        StallF, StallD, StallE, StallM, FlushD, FlushE;
+    wire [1:0]  ForwardAE, ForwardBE;
+    wire        Mispredict_Flag;
+
+    // --- Fetch Stage (IF) ---
+    wire [31:0] PC_next, PCF, PCPlus4F, InstrF;
+    wire [1:0]  MUX_PCSel;
+    wire        Push_EnableF, Pop_EnableF;
+    wire [31:0] Predicted_PCF;
+
+    // --- Decode Stage (ID) ---
+    wire [31:0] InstrD, PCD, PCPlus4D, Predicted_PCD;
+    wire        Pop_EnableD;
+    wire [6:0]  opD, funct7D;
+    wire [4:0]  Rs1D, Rs2D, RdD;
+    wire [2:0]  funct3D, ImmSrcD;
+    wire [31:0] RD1D, RD2D, ImmExtD;
+    wire        RegWriteD, MemWriteD, BranchD, ALUSrcBD;
+    wire [1:0]  ResultSrcD, JumpD, ExecSelD, ALUSrcAD, MultControlD, CRCControlD;
+    wire [2:0]  BITControlD;
+    wire [3:0]  ALUControlD;
+
+    // --- Execute Stage (EX) ---
+    wire [31:0] RD1E, RD2E, PCE, PCPlus4E, ImmExtE, Predicted_PCE;
+    wire [4:0]  Rs1E, Rs2E, RdE;
+    wire [2:0]  funct3E;
+    wire        Pop_EnableE;
+    wire        RegWriteE, MemWriteE, BranchE, ALUSrcBE;
+    wire [1:0]  ResultSrcE, JumpE, ExecSelE, ALUSrcAE, MultControlE, CRCControlE;
+    wire [2:0]  BITControlE;
+    wire [3:0]  ALUControlE;
+    wire [31:0] Formatted_SrcAE, Formatted_SrcBE, SrcAE, SrcBE;
+    wire [31:0] ALU_OutE, MULT_OutE, CRC_OutE, BITMANIP_OutE, ALUResultE_Final;
+    wire [31:0] PCTargetE;
+    wire        ZeroE;
+    wire [1:0]  PCSrcE;
+
+    // --- Memory Stage (MEM) ---
+    wire        RegWriteM, MemWriteM;
+    wire [1:0]  ResultSrcM;
+    wire [31:0] ALUResultM, WriteDataM, PCPlus4M;
+    wire [4:0]  RdM;
+    wire [2:0]  funct3M;
+    wire [3:0]  BW;
+    wire [31:0] ReadDataM_raw, ReadDataM_formatted;
+
+    // --- Writeback Stage (WB) ---
+    wire        RegWriteW;
+    wire [1:0]  ResultSrcW;
+    wire [31:0] ALUResultW, ReadDataW, PCPlus4W;
+    wire [4:0]  RdW;
+    wire [31:0] ResultW;
+
+    // =========================================================================
+    // 2. BUS PORT ASSIGNMENTS
+    // =========================================================================
+
+    // Instruction Bus Hookup
+    assign i_addr = PCF;
+    assign i_req  = ~StallF;
+    assign InstrF = i_rdata;
+
+    // Data Bus Hookup
+    assign d_addr        = ALUResultM;
+    assign d_wdata       = WriteDataM;
+    assign d_we          = MemWriteM ? BW : 4'b0000;
+    assign d_req         = MemWriteM | (ResultSrcM == 2'b01); // Store OR Load
+    assign ReadDataM_raw = d_rdata;
+
+    // =========================================================================
+    // 3. FETCH STAGE (IF)
+    // =========================================================================
+
+    MUX_Fetch_Control fetch_mux_ctrl (
+        .PCSrcE(PCSrcE),
+        .Pop_Enable(Pop_EnableF),
+        .MUX_PCSel(MUX_PCSel)
+    );
+
+    Mux_PC pc_mux (
+        .MUX_PCSel(MUX_PCSel),
+        .PCPlus4F(PCPlus4F),
+        .PCTargetE(PCTargetE),
+        .ALUResultE(ALUResultE_Final),
+        .Predicted_PC(Predicted_PCF),
+        .PC_next(PC_next)
+    );
+
+    Register_PC pc_reg (
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .StallF(StallF),
+        .PC_next(PC_next),
+        .PCF(PCF)
+    );
+
+    Adder_PCPlus4 pc_plus_4 (
+        .PCF(PCF),
+        .PCPlus4F(PCPlus4F)
+    );
+
+    Pre_Decoder pre_decoder (
+        .InstrF(InstrF),
+        .Push_Enable(Push_EnableF),
+        .Pop_Enable(Pop_EnableF)
+    );
+
+    RAS return_address_stack (
+        .i_clk        (clk),
+        .rst_n        (rst_n),
+        .Push_Enable  (Push_EnableF & ~StallF), // Gated: push only on valid new fetch
+        .Push_Data    (PCPlus4F),
+        .Pop_Enable   (Pop_EnableF & ~StallF),  // Gated: pop only on valid new fetch
+        .Predicted_PC (Predicted_PCF)
+    );
+
+    Register_IF_ID if_id_reg (
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .StallD(StallD),
+        .FlushD(FlushD),
+        .RD(InstrF),
+        .PCF(PCF),
+        .PCPlus4F(PCPlus4F),
+        .Predicted_PCF(Predicted_PCF),
+        .Pop_EnableF(Pop_EnableF),
+        .InstrD(InstrD),
+        .PCD(PCD),
+        .PCPlus4D(PCPlus4D),
+        .Predicted_PCD(Predicted_PCD),
+        .Pop_EnableD(Pop_EnableD)
+    );
+
+    // =========================================================================
+    // 4. DECODE STAGE (ID)
+    // =========================================================================
+
+    Instruction_Splitter instr_split (
+        .InstrD(InstrD),
+        .funct7(funct7D),
+        .rs2(Rs2D),
+        .rs1(Rs1D),
+        .funct3(funct3D),
+        .rd(RdD),
+        .opcode(opD),
+        .Instr()
+    );
+
+    Control_Unit ctrl_unit (
+        .op(opD),
+        .funct3(funct3D),
+        .funct7(funct7D),
+        .rs2D(Rs2D),
+        .RegWriteD(RegWriteD),
+        .ResultSrcD(ResultSrcD),
+        .MemWriteD(MemWriteD),
+        .JumpD(JumpD),
+        .BranchD(BranchD),
+        .ExecSelD(ExecSelD),
+        .BITControlD(BITControlD),
+        .MultControlD(MultControlD),
+        .CRCControlD(CRCControlD),
+        .ALUControlD(ALUControlD),
+        .ALUSrcBD(ALUSrcBD),
+        .ALUSrcAD(ALUSrcAD),
+        .ImmSrcD(ImmSrcD)
+    );
+
+    Register_File reg_file (
+        .A1(Rs1D),
+        .A2(Rs2D),
+        .A3(RdW),
+        .ResultW(ResultW),
+        .RegWriteW(RegWriteW),
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .RD1D(RD1D),
+        .RD2D(RD2D),
+        .o_debug_x4(o_debug_x4)
+    );
+
+    extend imm_extend (
+        .InstrD(InstrD[31:7]),
+        .ImmSrcD(ImmSrcD),
+        .ImmExt(ImmExtD)
+    );
+
+    Register_ID_EX id_ex_reg (
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .StallE(StallE),                 // Fixed case-sensitivity typo
+        .FlushE(FlushE),
+        .RegWriteD(RegWriteD),
+        .ResultSrcD(ResultSrcD),
+        .MemWriteD(MemWriteD),
+        .JumpD(JumpD),
+        .BranchD(BranchD),
+        .ExecSelD(ExecSelD),
+        .ALUControlD(ALUControlD),
+        .MultControlD(MultControlD),
+        .CRCControlD(CRCControlD),
+        .BITControlD(BITControlD),
+        .ALUSrcBD(ALUSrcBD),
+        .ALUSrcAD(ALUSrcAD),
+        .RD1(RD1D),
+        .RD2(RD2D),
+        .PCD(PCD),
+        .Rs1D(Rs1D),
+        .Rs2D(Rs2D),
+        .RdD(RdD),
+        .funct3D(funct3D),
+        .ImmExtD(ImmExtD),
+        .PCPlus4D(PCPlus4D),
+        .Predicted_PCD(Predicted_PCD),
+        .Pop_EnableD(Pop_EnableD),
+        // Outputs
+        .RegWriteE(RegWriteE),
+        .ResultSrcE(ResultSrcE),
+        .MemWriteE(MemWriteE),
+        .JumpE(JumpE),
+        .BranchE(BranchE),
+        .ExecSelE(ExecSelE),
+        .ALUControlE(ALUControlE),
+        .MultControlE(MultControlE),
+        .CRCControlE(CRCControlE),
+        .BITControlE(BITControlE),
+        .ALUSrcBE(ALUSrcBE),
+        .ALUSrcAE(ALUSrcAE),
+        .RD1E(RD1E),
+        .RD2E(RD2E),
+        .PCE(PCE),
+        .Rs1E(Rs1E),
+        .Rs2E(Rs2E),
+        .RdE(RdE),
+        .funct3E(funct3E),
+        .ImmExtE(ImmExtE),
+        .PCPlus4E(PCPlus4E),
+        .Predicted_PCE(Predicted_PCE),
+        .Pop_EnableE(Pop_EnableE)
+    );
+
+    // =========================================================================
+    // 5. EXECUTE STAGE (EX)
+    // =========================================================================
+
+    Mux_ForwardAE mux_fwd_a (
+        .ForwardAE(ForwardAE),
+        .RD1(RD1E),
+        .ResultW(ResultW),
+        .ALUResultM(ALUResultM),
+        .Formatted_RD1(Formatted_SrcAE)
+    );
+
+    Mux_ForwardBE mux_fwd_b (
+        .ForwardBE(ForwardBE),
+        .RD2(RD2E),
+        .ResultW(ResultW),
+        .ALUResultM(ALUResultM),
+        .Formatted_RD2(Formatted_SrcBE)
+    );
+
+    Mux_ALUSrcAE mux_alu_a (
+        .ALUSrcAE(ALUSrcAE),
+        .Formatted_SrcAE(Formatted_SrcAE),
+        .PCE(PCE),
+        .SrcAE(SrcAE)
+    );
+
+    Mux_ALUSrcBE mux_alu_b (
+        .ALUSrcBE(ALUSrcBE),
+        .Formatted_SrcBE(Formatted_SrcBE),
+        .ImmExtE(ImmExtE),
+        .SrcBE(SrcBE)
+    );
+
+    ALU main_alu (
+        .SrcAE(SrcAE),
+        .SrcBE(SrcBE),
+        .ALUControlE(ALUControlE),
+        .ALUResultE(ALU_OutE),
+        .o_Zero(ZeroE)
+    );
+
+    MULT exec_mult (
+        .MUL_Control(MultControlE),
+        .SrcA(SrcAE),
+        .SrcB(SrcBE),
+        .MUL_Result(MULT_OutE)
+    );
+
+    CRC exec_crc (
+        .CRC_Control(CRCControlE),
+        .SrcA(SrcAE),
+        .SrcB(SrcBE),
+        .CRC_Result(CRC_OutE)
+    );
+
+    BITMANIP exec_bitmanip (
+        .SrcAE(SrcAE),
+        .SrcBE(SrcBE),
+        .BIT_Control(BITControlE),
+        .BIT_Result(BITMANIP_OutE)
+    );
+
+    Mux_ExecSelE mux_exec_sel (
+        .ExecSelE(ExecSelE),
+        .ALU(ALU_OutE),
+        .MULT(MULT_OutE),
+        .CRC(CRC_OutE),
+        .BITMANIP(BITMANIP_OutE),
+        .ALUResultE(ALUResultE_Final)
+    );
+
+    Adder_PC_Target pc_target_adder (
+        .ImmExtE(ImmExtE),
+        .PCE(PCE),
+        .PCTargetE(PCTargetE)
+    );
+
+    Next_PC_Logic next_pc_logic (
+        .ZeroE(ZeroE),
+        .BranchE(BranchE),
+        .JumpE(JumpE),
+        .Pop_EnableE(Pop_EnableE),
+        .Mispredict_Flag(Mispredict_Flag),
+        .PCSrcE(PCSrcE)
+    );
+
+    Branch_Monitor branch_monitor (
+        .Predicted_PCE(Predicted_PCE),
+        .ALUResultE(ALUResultE_Final),
+        .Pop_EnableE(Pop_EnableE),
+        .Mispredict_Flag(Mispredict_Flag)
+    );
+
+    Register_EX_MEM ex_mem_reg (
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .StallM(StallM),
+        .RegWriteE(RegWriteE),
+        .ResultSrcE(ResultSrcE),
+        .MemWriteE(MemWriteE),
+        .ALUResultE(ALUResultE_Final),
+        .WriteDataE(Formatted_SrcBE),
+        .RdE(RdE),
+        .funct3E(funct3E),
+        .PCPlus4E(PCPlus4E),
+        // Outputs
+        .RegWriteM(RegWriteM),
+        .ResultSrcM(ResultSrcM),
+        .MemWriteM(MemWriteM),
+        .ALUResultM(ALUResultM),
+        .WriteDataM(WriteDataM),
+        .RdM(RdM),
+        .funct3M(funct3M),
+        .PCPlus4M(PCPlus4M)
+    );
+
+    // =========================================================================
+    // 6. MEMORY STAGE (MEM)
+    // =========================================================================
+
+    LSU load_store_unit (
+        .funct3M(funct3M),
+        .ALUResultM(ALUResultM[1:0]),
+        .RD(ReadDataM_raw),
+        .BW(BW),
+        .Formatted_ReadDataM(ReadDataM_formatted)
+    );
+
+    Register_MEM_WB mem_wb_reg (
+        .i_Clk(clk),
+        .rst_n(rst_n),
+        .StallW(StallM),
+        .RegWriteM(RegWriteM),
+        .ResultSrcM(ResultSrcM),
+        .ALUResultM(ALUResultM),
+        .Formatted_RD(ReadDataM_formatted),
+        .RdM(RdM),
+        .PCPlus4M(PCPlus4M),
+        // Outputs
+        .RegWriteW(RegWriteW),
+        .ResultSrcW(ResultSrcW),
+        .ALUResultW(ALUResultW),
+        .ReadDataW(ReadDataW),
+        .RdW(RdW),
+        .PCPlus4W(PCPlus4W)
+    );
+
+    // =========================================================================
+    // 7. WRITEBACK STAGE (WB)
+    // =========================================================================
+
+    Mux_ResultSrcW mux_result_w (
+        .ResultSrcW(ResultSrcW),
+        .ALUResultW(ALUResultW),
+        .ReadDataW(ReadDataW),
+        .PCPlus4W(PCPlus4W),
+        .ResultW(ResultW)      
+    );
+
+    // =========================================================================
+    // 8. HAZARD UNIT
+    // =========================================================================
+
+    Hazard_Unit hazard_unit (
+        .Rs1E(Rs1E),
+        .Rs2E(Rs2E),
+        .RdM(RdM),
+        .RdW(RdW),
+        .RegWriteM(RegWriteM),
+        .RegWriteW(RegWriteW),
+        .Mispredict_Flag(Mispredict_Flag),
+        .Rs1D(Rs1D),
+        .Rs2D(Rs2D),
+        .RdE(RdE),
+        .ResultSrcE(ResultSrcE),
+        .PCSrcE(PCSrcE),
+        .d_req(d_req),
+        .d_ready(d_ready),
+        .ForwardAE(ForwardAE),
+        .ForwardBE(ForwardBE),
+        .StallF(StallF),
+        .StallD(StallD),
+        .StallE(StallE),
+        .StallM(StallM),
+        .FlushD(FlushD),
+        .FlushE(FlushE)
+    );
+
+    assign o_mispredict_flag = Mispredict_Flag;
+
+endmodule
+// ========================================
+// File: rtl/Register_EX_MEM.v
+// ========================================
+
+module Register_EX_MEM (
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    input  wire        StallM,         // Freeze MEM pipeline register on D-Bus stall
+
+    // Inputs from Execute Stage
+    input  wire        RegWriteE,
+    input  wire [1:0]  ResultSrcE,
+    input  wire        MemWriteE,
+    input  wire [31:0] ALUResultE,
+    input  wire [31:0] WriteDataE,
+    input  wire [4:0]  RdE,
+    input  wire [2:0]  funct3E,
+    input  wire [31:0] PCPlus4E,
+
+    // Outputs to Memory Stage
+    output reg         RegWriteM,
+    output reg  [1:0]  ResultSrcM,
+    output reg         MemWriteM,
+    output reg  [31:0] ALUResultM,
+    output reg  [31:0] WriteDataM,
+    output reg  [4:0]  RdM,
+    output reg  [2:0]  funct3M,
+    output reg  [31:0] PCPlus4M
+);
+
+    always @(posedge i_Clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // Asynchronous Reset
+            RegWriteM  <= 1'b0;
+            ResultSrcM <= 2'b00;
+            MemWriteM  <= 1'b0;
+            ALUResultM <= 32'h0;
+            WriteDataM <= 32'h0;
+            RdM        <= 5'b0;
+            funct3M    <= 3'b0;
+            PCPlus4M   <= 32'h0;
+        end else if (!StallM) begin
+            // Normal Pipeline Advance
+            RegWriteM  <= RegWriteE;
+            ResultSrcM <= ResultSrcE;
+            MemWriteM  <= MemWriteE;
+            ALUResultM <= ALUResultE;
+            WriteDataM <= WriteDataE;
+            RdM        <= RdE;
+            funct3M    <= funct3E;
+            PCPlus4M   <= PCPlus4E;
+        end
+        // When StallM == 1'b1, all output registers hold their current values
+    end
+
+endmodule
+// ========================================
+// File: rtl/Register_File.v
+// ========================================
+
+module Register_File # (
+    parameter p_DATA_DMEM_SIZE = 2**12
+)(
+    input  wire [4:0]  A1,
+    input  wire [4:0]  A2,
+    input  wire [4:0]  A3,
+    input  wire [31:0] ResultW,
+    input  wire        RegWriteW,
+    input  wire        i_Clk,
+    input  wire        rst_n,
+    output wire [31:0] RD1D,
+    output wire [31:0] RD2D,
+    output wire [31:0] o_debug_x4   //add this port
+);
+
+    assign o_debug_x4 = r_Registers[4];     //to direct read of x4
+
+    localparam c_SP_Index = 2;
+    localparam c_GP_Index = 3;
+    localparam c_GP_Initial_Value = 32'h10010000;
+    localparam c_SP_Initial_Value = c_GP_Initial_Value + p_DATA_DMEM_SIZE - 4;
+
+    reg [31:0] r_Registers [0:31];
+        // Unified Positive-Edge Triggered Write (Eliminates Half-Cycle STA Path)
+    always @(posedge i_Clk or negedge rst_n) begin : proc_reg_write
+        integer i;
+        if (!rst_n) begin
+            for (i = 0; i < 32; i = i + 1) begin
+                case (i)
+                    c_SP_Index: r_Registers[i] <= c_SP_Initial_Value;
+                    c_GP_Index: r_Registers[i] <= c_GP_Initial_Value;
+                    default:    r_Registers[i] <= 32'h0;
+                endcase
+            end
+        end else begin
+            if (RegWriteW && (A3 != 5'h0)) begin
+                r_Registers[A3] <= ResultW;
+            end
+        end
+    end
     // Asynchronous Read with Internal WB-to-ID Write-Through Bypass
     assign RD1D = (A1 == 5'h0)              ? 32'h0   :
                   (RegWriteW && (A3 == A1)) ? ResultW : r_Registers[A1];

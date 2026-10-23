@@ -135,27 +135,43 @@ module fpga_top (
     // 5. Diagnostics & Status Outputs
     // =========================================================================
     reg mispredict_latched = 1'b0;
+    reg test_passed_latched = 1'b0;
+    reg test_failed_latched = 1'b0;
+
     always @(posedge core_clk or negedge rst_n) begin
         if (!rst_n) begin
-            mispredict_latched <= 1'b0;
-        end else if (core_mispredict) begin
-            mispredict_latched <= 1'b1;
+            mispredict_latched  <= 1'b0;
+            test_passed_latched <= 1'b0;
+            test_failed_latched <= 1'b0;
+        end else begin
+            if (core_mispredict) begin
+                mispredict_latched <= 1'b1;
+            end
+            if ((i_addr == 32'h00000378) && (core_x4 == 32'h00000000)) begin
+                test_passed_latched <= 1'b1;
+            end
+            if (i_addr == 32'h00000358) begin
+                test_failed_latched <= 1'b1;
+            end
         end
     end
 
-    wire test_passed = (i_addr == 32'h000002C4);
+    // Lock HEX display onto terminal address once reached so digits do not blur
+    wire [15:0] display_pc = test_passed_latched ? 16'h0378 :
+                             test_failed_latched ? 16'h0358 : i_addr[15:0];
 
     assign LEDR[0]   = rst_n;
     assign LEDR[1]   = ~uart_ready;
     assign LEDR[2]   = mispredict_latched;
-    assign LEDR[8:3] = 6'b000000;
-    assign LEDR[9]   = test_passed;
+    assign LEDR[7:3] = 5'b00000;
+    assign LEDR[8]   = test_failed_latched; // Lights up if core hits FAIL_TRAP (0x0358)
+    assign LEDR[9]   = test_passed_latched; // Lights up solid when core hits PASS_LOOP (0x0378)
 
     // Display lower 16 bits of PC on HEX0 - HEX3
-    hex_digit_decoder seg0 (.nibble(i_addr[3:0]),   .hex(HEX0));
-    hex_digit_decoder seg1 (.nibble(i_addr[7:4]),   .hex(HEX1));
-    hex_digit_decoder seg2 (.nibble(i_addr[11:8]),  .hex(HEX2));
-    hex_digit_decoder seg3 (.nibble(i_addr[15:12]), .hex(HEX3));
+    hex_digit_decoder seg0 (.nibble(display_pc[3:0]),   .hex(HEX0));
+    hex_digit_decoder seg1 (.nibble(display_pc[7:4]),   .hex(HEX1));
+    hex_digit_decoder seg2 (.nibble(display_pc[11:8]),  .hex(HEX2));
+    hex_digit_decoder seg3 (.nibble(display_pc[15:12]), .hex(HEX3));
 
     // Display lowest byte of status register x4 on HEX4 - HEX5
     hex_digit_decoder seg4 (.nibble(core_x4[3:0]),  .hex(HEX4));
